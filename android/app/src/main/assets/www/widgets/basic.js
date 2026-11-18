@@ -1,4 +1,4 @@
-import { $, API, D, LEVEL_COLOR, LOCALE, mediaHtml, METRICS, Q_STYLE, S_ORDER, ago, api, averageColor, buzz, cfg, chart, color, cssVar, currentProcessesSort, emit, fillIcon, fmtClock, fmtDur, fmtHM, fmtMem, fmtReset, fmtTime, fmtValue, gotoProcesses, gpuMem, gpusOf, h, haptic, hasProcessesPage, hist, hour12, keyButton, levelOf, media, metricText, online, openSheet, paceInfo, pad, prRow, pushView, quotaProviders, r1, registerProcessesSorter, renderStatus, ringSvg, setArtColor, setMediaState, setVolDragging, shortDur, shortGpu, store, t, tick, toast, volDragging, wxBlock, wxIcon } from '../main.js';
+import { place, $, API, D, LEVEL_COLOR, LOCALE, mediaHtml, METRICS, Q_STYLE, S_ORDER, ago, api, averageColor, buzz, cfg, chart, color, cssVar, currentProcessesSort, emit, fillIcon, fmtClock, fmtDur, fmtHM, fmtMem, fmtReset, fmtTime, fmtValue, gotoProcesses, gpuMem, gpusOf, h, haptic, hasProcessesPage, hist, hour12, keyButton, levelOf, media, metricText, online, openSheet, paceInfo, pad, prRow, pushView, quotaProviders, r1, registerProcessesSorter, renderStatus, ringSvg, setArtColor, setMediaState, setVolDragging, shortDur, shortGpu, store, t, tick, toast, volDragging, wxBlock, wxIcon } from '../main.js';
 import { W } from '../registry.js';
 import { invalidateDeckState } from './controls.js';
 
@@ -59,15 +59,15 @@ W.forecast = {
   create(box, { o }) {
     const daily = o.mode === 'daily';
     const row = h('div', 'fc');
-    box.append(h('div', 'w-title', daily ? '7-day forecast' : 'Next hours', h('span', 'w-sub', '')), row);
+    box.append(h('div', 'w-title', daily ? (o.days ? `Next ${o.days} days` : '7-day forecast') : 'Next hours', h('span', 'w-sub', '')), row);
     return {
       update() {
         const w = D.weather;
         if (!w?.hourly || !w?.daily) { row.replaceChildren(h('div', 'empty', D.weather === null ? t('w.loading') : t('w.weatherUnavailable'))); return; }
-        box.querySelector('.w-sub').textContent = cfg.weather?.city || '';
+        box.querySelector('.w-sub').textContent = place().city || '';
         const vertical = box.clientHeight > box.clientWidth * 0.9;
         const room = vertical ? box.clientHeight - 30 : box.clientWidth - 16;
-        const n = Math.max(3, Math.min(daily ? 7 : 12, Math.floor(room / (vertical ? 30 : 50))));
+        const n = daily && o.days ? o.days : Math.max(3, Math.min(daily ? 7 : 12, Math.floor(room / (vertical ? 30 : 50))));  // option days: an exact number of days
         row.classList.toggle('vert', vertical);
         const cells = [];
         if (daily) {
@@ -574,7 +574,7 @@ W.codexbar = W.quotas;
 
 W.sessions = {
   needs: ['work', 'tick'],
-  create(box) {
+  create(box, { o = {} } = {}) {
     const sum = h('span', 'w-sum');
     const list = h('div', 's-list', h('div', 'empty', t('sess.waitingData')));
     box.append(h('div', 'w-head', h('span', 's-label', t('w.sessions')), sum), list);
@@ -618,7 +618,8 @@ W.sessions = {
     };
     return {
       update() {
-        const sessions = D.work?.sessions;
+        // option tool: 'claude' | 'codex' shows only that tool's sessions
+        const sessions = D.work?.sessions && (o.tool ? D.work.sessions.filter((x) => x.tool === o.tool) : D.work.sessions);
         if (!sessions) return;
         const counts = { waiting: 0, busy: 0, shell: 0, idle: 0 };
         sessions.forEach((s) => (counts[s.status] = (counts[s.status] || 0) + 1));

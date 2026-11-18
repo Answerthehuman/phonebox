@@ -1,4 +1,4 @@
-import { $, D, DEFAULT_CFG, LOCALE, cfg, fmtDur, fmtHM, h, t, tick } from '../main.js';
+import { place, $, D, DEFAULT_CFG, LOCALE, cfg, fmtDur, fmtHM, h, t, tick } from '../main.js';
 import { W } from '../registry.js';
 import { cached, every } from './helpers.js';
 
@@ -87,7 +87,7 @@ W.air = {
 
     return {
       update() {
-        const { city: name, lat, lon } = cfg.weather || DEFAULT_CFG.weather;
+        const { city: name, lat, lon } = place();
         if (city.textContent !== (name || '')) city.textContent = name || '';
         const location = `${lat},${lon}`;
         if (coordinates !== location) {

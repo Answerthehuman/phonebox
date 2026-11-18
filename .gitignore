@@ -50,3 +50,8 @@ tools/ui-tests/test-results/
 
 *.log
 *.txt
+# Local patch workflow: built APKs, the font download and signing keys stay out of the repo
+*.apk
+*.idsig
+font-source/
+!android/app/src/main/assets/www/fonts/OFL.txt

@@ -1,0 +1,172 @@
+/* Now Playing stage: record, tonearm, lyrics. Sizes use container units: the widget is a size container. */
+.w-musicstage {
+  --ease: cubic-bezier(.22, .9, .24, 1);
+  border-radius: 20px;
+  background: #0b0b0c;
+  isolation: isolate;
+  color: #fff;
+  /* landscape, record view */
+  --d: min(84cqh, 43cqw);
+  --dx: 5cqw;
+  --dy: calc((100cqh - var(--d)) / 2);
+  --il: calc(var(--dx) + var(--d) + 6cqw);
+  --ir: 5.5cqw;
+  --it: 17cqh;
+  --ih: auto;
+  --ia: left;
+  --dl: var(--il);
+  --dr: var(--ir);
+  --db: 7cqh;
+}
+.ms-root .ms-stage { position: absolute; inset: 0; }
+
+/* ---- backdrop: the cover, blown up and blurred, like a lit room */
+.ms-bg { display: none; }
+.ms-bg img { width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 1s; filter: blur(46px) saturate(1.9) brightness(.62); transform: scale(1.15); }
+.ms-bg img.on { opacity: 1; }
+.ms-veil { position: absolute; inset: 0; z-index: -1; background: linear-gradient(180deg, rgba(var(--ambient), .30) 0, rgba(var(--ambient), .10) 55%, rgba(var(--ambient), .03) 100%); transition: background 1s; }
+.ms-glow { display: none; }
+
+/* ---- the record */
+.ms-deck { position: absolute; left: var(--dx); top: var(--dy); width: var(--d); height: var(--d); transition: left .8s var(--ease), top .8s var(--ease), width .8s var(--ease), height .8s var(--ease); }
+.ms-disc { position: absolute; inset: 0; border-radius: 50%; box-shadow: 0 1.6cqh 3.6cqh rgba(0, 0, 0, .55); background: #0c0c0e; will-change: transform; }
+.ms-spin { position: absolute; inset: 0; border-radius: 50%; will-change: transform; }
+.ms-grooves { position: absolute; inset: 0; border-radius: 50%;
+  background:
+    radial-gradient(circle, transparent 0 25%, rgba(0, 0, 0, .55) 25.4%, transparent 26.2%),
+    radial-gradient(circle, transparent 0 62%, rgba(0, 0, 0, .5) 62.3%, rgba(255, 255, 255, .06) 62.7%, transparent 63.6%),
+    repeating-radial-gradient(circle, rgba(255, 255, 255, .045) 0 .35px, rgba(0, 0, 0, 0) .35px 1.7px),
+    radial-gradient(circle, #15151a 0, #0b0b0d 70%, #17171c 100%); }
+.ms-label { position: absolute; left: 50%; top: 50%; width: 41%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; overflow: hidden;
+  background: linear-gradient(135deg, rgba(var(--ambient), .8), #1c1c1e); box-shadow: 0 0 0 .5cqh rgba(0, 0, 0, .55), inset 0 0 0 1px rgba(255, 255, 255, .18); }
+.ms-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .6s; }
+.ms-art.on { opacity: 1; }
+.ms-ph { position: absolute; inset: 0; display: grid; place-items: center; font-size: 9cqh; color: rgba(255, 255, 255, .6); }
+.ms-art.on ~ .ms-ph { display: none; }
+.ms-hole { position: absolute; left: 50%; top: 50%; width: 5.6%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fafafa, #8e8e93 70%); box-shadow: 0 0 0 .35cqh rgba(0, 0, 0, .55), 0 1px 3px rgba(0, 0, 0, .6); }
+/* the light on the vinyl stays put while the record turns under it */
+.ms-sheen { position: absolute; inset: 0; border-radius: 50%; pointer-events: none; mix-blend-mode: screen; opacity: .5;
+  background: conic-gradient(from 25deg, transparent 0 7%, rgba(255, 255, 255, .17) 12%, transparent 20% 50%, rgba(255, 255, 255, .13) 62%, transparent 70%); }
+
+/* ---- tonearm */
+.ms-arm { position: absolute; right: -3%; top: -1%; width: 0; height: 0; transform-origin: 0 0; transform: rotate(-9deg); transition: transform .9s var(--ease), opacity .5s; pointer-events: none; opacity: .96; }
+.playing .ms-arm { transform: rotate(21deg); }
+.ms-pivot { position: absolute; left: -2.6cqh; top: -2.6cqh; width: 5.2cqh; height: 5.2cqh; border-radius: 50%; background: #2c2c2e; box-shadow: 0 0 0 .5cqh #3a3a3c, 0 .6cqh 1.2cqh rgba(0, 0, 0, .5); }
+.ms-bar { position: absolute; left: -.3cqh; top: 0; width: .6cqh; min-width: 2px; height: calc(var(--d) * .66); border-radius: 1cqh; background: #8e8e93; }
+.ms-head { position: absolute; left: -1.1cqh; top: calc(var(--d) * .66 - .4cqh); width: 2.2cqh; height: 3.6cqh; border-radius: .5cqh; background: #636366; transform: rotate(-12deg); transform-origin: 50% 0; }
+
+/* ---- title block */
+.ms-info { position: absolute; left: var(--il); right: var(--ir); top: var(--it); height: var(--ih); display: flex; flex-direction: column; justify-content: center; gap: .8cqh; text-align: var(--ia); min-width: 0;
+  transition: left .8s var(--ease), top .8s var(--ease), height .8s var(--ease), right .8s var(--ease); }
+.ms-source { font-size: clamp(10px, 3.6cqh, 13px); font-weight: 500; color: var(--apple-red); }
+.ms-title { font-size: clamp(19px, 8.4cqh, 36px); font-weight: 600; letter-spacing: -.02em; line-height: 1.1; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ms-artist { font-size: clamp(13px, 5.6cqh, 21px); font-weight: 500; color: rgba(255, 255, 255, .66); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---- lyrics */
+.ms-lyrics { position: absolute; left: 5cqw; right: 5cqw; top: 25cqh; bottom: 27cqh; overflow: hidden; opacity: 0; pointer-events: none; transition: opacity .5s;
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 16%, #000 80%, transparent 100%); mask-image: linear-gradient(180deg, transparent 0, #000 16%, #000 80%, transparent 100%); }
+.lyr-on .ms-lyrics { opacity: 1; pointer-events: auto; transition-delay: .25s; }
+.ms-lines { transition: transform .6s var(--ease); will-change: transform; padding: 4cqh 0 24cqh; }
+.ms-line { font-size: clamp(17px, 7.4cqh, 32px); font-weight: 700; letter-spacing: -.015em; line-height: 1.22; padding: .35em 0; color: rgba(255, 255, 255, .34); transform-origin: 0 50%; transition: color .45s, transform .55s var(--ease), filter .45s, opacity .45s;
+  filter: blur(calc(var(--ld, 0) * .55px)); transform: scale(.9); }
+.ms-line.past { color: rgba(255, 255, 255, .26); }
+.ms-line.near { filter: blur(.4px); }
+.ms-line.now { color: #fff; transform: scale(1); filter: none; }
+.ms-line.gap { font-size: clamp(14px, 5cqh, 22px); letter-spacing: .3em; }
+.ms-plain { white-space: pre-wrap; font-size: clamp(14px, 5.6cqh, 21px); font-weight: 600; line-height: 1.5; color: rgba(255, 255, 255, .85); }
+.ms-lyrics.plain { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.ms-lyrics.plain .ms-lines { transform: none !important; padding-top: 4cqh; }
+.ms-note { white-space: pre-line; line-height: 1.5; position: absolute; inset: 0; display: grid; place-items: center; font-size: clamp(13px, 5cqh, 19px); font-weight: 600; color: rgba(255, 255, 255, .45); text-align: center; }
+
+/* ---- controls */
+.ms-dock { position: absolute; left: var(--dl); right: var(--dr); bottom: var(--db); display: grid; grid-template-columns: 1fr auto 1fr; grid-template-areas: "prog prog prog" "ctl ctl ctl" "lyr . vol"; row-gap: 1.6cqh; align-items: center;
+  transition: left .8s var(--ease), bottom .8s var(--ease), right .8s var(--ease); }
+.ms-prog { grid-area: prog; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 2cqw; font-size: clamp(10px, 3.6cqh, 13px); font-weight: 500; color: rgba(255, 255, 255, .55); font-variant-numeric: tabular-nums; }
+.ms-bar2 { position: relative; height: 24px; display: flex; align-items: center; }
+.ms-bar2::before { content: ""; position: absolute; left: 0; right: 0; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, .2); }
+.ms-fill { position: relative; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, .9); width: 0; }
+.ms-bar2:active .ms-fill { height: 9px; }
+.ms-ctl { grid-area: ctl; display: flex; align-items: center; justify-content: center; gap: 4cqw; }
+.ms-btn { width: 15cqh; height: 15cqh; min-width: 44px; min-height: 44px; max-width: 64px; max-height: 64px; display: grid; place-items: center; border-radius: 50%; color: #fff; transition: transform .16s var(--ease), opacity .2s; }
+.ms-btn svg { width: 56%; height: 56%; fill: currentColor; }
+.ms-btn:active { transform: scale(.86); opacity: .7; }
+.ms-btn.play { width: 19cqh; height: 19cqh; max-width: 78px; max-height: 78px; min-width: 56px; min-height: 56px; }
+.ms-btn.play svg { width: 70%; height: 70%; }
+.i-pause, .playing .i-play { display: none; }
+.playing .i-pause { display: block; }
+.ms-tools { grid-area: lyr; justify-self: start; display: flex; gap: 8px; }
+.ms-ico { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; color: #fff; background: rgba(255, 255, 255, .12); transition: background .2s, color .2s, transform .16s; }
+.ms-ico svg { width: 23px; height: 23px; }
+.ms-ico:active { transform: scale(.92); }
+.ms-ico.on { background: #fff; color: #000; }
+.ms-vol { grid-area: vol; justify-self: end; width: min(100%, 150px); display: flex; align-items: center; gap: 6px; color: rgba(255, 255, 255, .6); }
+.ms-vol i { display: grid; flex: 0 0 auto; }
+.ms-vol svg { width: 17px; height: 17px; fill: currentColor; }
+.ms-vol input[type=range]::-webkit-slider-runnable-track { height: 5px; border-radius: 3px; background: linear-gradient(to right, rgba(255, 255, 255, .9) var(--p, 50%), rgba(255, 255, 255, .22) var(--p, 50%)); }
+.ms-vol input[type=range]::-webkit-slider-thumb { width: 14px; height: 14px; margin-top: -4.5px; background: #fff; }
+.volume-unavailable .ms-vol { opacity: .35; pointer-events: none; }
+.ms-root.idle .ms-info, .ms-root.idle .ms-deck { opacity: .7; }
+.ms-root.idle .ms-arm { opacity: 0; }
+
+/* ---- lyrics view (landscape): small record and title on top, lyrics in the middle */
+.w-musicstage.lyr-on { --d: 17cqh; --dx: 5cqw; --dy: 6cqh; --il: calc(5cqw + 17cqh + 3cqw); --it: 6cqh; --ih: 17cqh; --dl: 5cqw; --dr: 5cqw; --db: 3cqh; }
+.lyr-on .ms-title { font-size: clamp(15px, 6.4cqh, 26px); -webkit-line-clamp: 1; }
+.lyr-on .ms-artist { font-size: clamp(12px, 4.6cqh, 18px); }
+.lyr-on .ms-arm { opacity: 0; }
+.lyr-on .ms-source { display: none; }
+.lyr-on .ms-dock { grid-template-areas: "prog prog prog" "lyr ctl vol"; row-gap: .6cqh; }
+.lyr-on .ms-btn { width: 11cqh; height: 11cqh; min-width: 40px; min-height: 40px; }
+.lyr-on .ms-btn.play { width: 14cqh; height: 14cqh; min-width: 48px; min-height: 48px; }
+.lyr-on .ms-ctl { gap: 3cqw; }
+
+/* ---- tall (portrait phone) */
+.ms-tall { --d: min(72cqw, 40cqh); --dx: calc((100cqw - var(--d)) / 2); --dy: 7cqh; --il: 8cqw; --ir: 8cqw; --it: calc(7cqh + var(--d) + 4.5cqh); --ia: center; --dl: 7cqw; --dr: 7cqw; --db: 3.5cqh; }
+.ms-tall .ms-info { align-items: stretch; }
+.ms-tall .ms-title { font-size: clamp(20px, 3.8cqh, 30px); }
+.ms-tall .ms-artist { font-size: clamp(14px, 2.4cqh, 19px); }
+.ms-tall .ms-source { font-size: 12px; }
+.ms-tall .ms-btn { width: 8.5cqh; height: 8.5cqh; }
+.ms-tall .ms-btn.play { width: 11cqh; height: 11cqh; }
+.ms-tall .ms-prog { font-size: 12px; }
+.ms-tall.lyr-on { --d: 15cqw; --dx: 6cqw; --dy: 3.5cqh; --il: calc(6cqw + 15cqw + 3.5cqw); --ir: 6cqw; --it: 3.5cqh; --ih: 15cqw; --ia: left; --dl: 6cqw; --dr: 6cqw; --db: 3cqh; }
+.ms-tall .ms-lyrics { left: 7cqw; right: 7cqw; top: calc(3.5cqh + 15cqw + 2.5cqh); bottom: 24cqh; }
+.ms-tall .ms-line { font-size: clamp(20px, 3.4cqh, 30px); }
+.ms-tall.lyr-on .ms-title { font-size: clamp(16px, 2.6cqh, 22px); }
+.ms-tall.lyr-on .ms-dock { grid-template-areas: "prog prog prog" "ctl ctl ctl" "lyr . vol"; }
+.ms-tall .ms-lyrics .ms-lines { padding-top: 10cqh; }
+.ms-tall:not(.lyr-on) .ms-lyrics { display: none; }
+
+.ms-root .offline-msg { display: none; }
+@media (prefers-reduced-motion: reduce) { .ms-lines, .ms-line, .ms-deck, .ms-info, .ms-dock, .ms-arm { transition: none; } }
+
+/* ---- queue panel: same slot as the lyrics */
+.ms-queue { position: absolute; left: 5cqw; right: 5cqw; top: 25cqh; bottom: 27cqh; overflow-y: auto; opacity: 0; pointer-events: none; transition: opacity .4s; -webkit-overflow-scrolling: touch; }
+.show-queue .ms-queue { opacity: 1; pointer-events: auto; }
+.show-queue .ms-lyrics { display: none; }
+.ms-qhead { font-size: 12px; font-weight: 500; color: rgba(255, 255, 255, .55); padding: 0 0 6px; }
+.ms-qitem { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 6px 0; border-radius: 8px; }
+.ms-qitem:active { background: rgba(255, 255, 255, .08); }
+.ms-qcover { flex: 0 0 auto; width: 40px; height: 40px; border-radius: 5px; background: rgba(255, 255, 255, .1); overflow: hidden; display: block; }
+.ms-qcover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ms-qtxt { min-width: 0; display: flex; flex-direction: column; }
+.ms-qtxt b { font-size: 15px; font-weight: 600; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ms-qtxt small { font-size: 12.5px; color: rgba(255, 255, 255, .55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ms-qnote:empty { display: none; }
+.ms-tall .ms-queue { left: 7cqw; right: 7cqw; top: calc(3.5cqh + 15cqw + 2.5cqh); bottom: 24cqh; }
+.ms-tall:not(.lyr-on) .ms-queue { display: none; }
+
+/* ---- lyrics full view: a tap on the empty part of the lyrics hides everything below them */
+.ms-line { width: fit-content; max-width: 100%; }
+.ms-dock { transition: left .8s var(--ease), bottom .8s var(--ease), right .8s var(--ease), opacity .35s, transform .45s var(--ease); }
+.ms-lyrics { transition: opacity .5s, bottom .5s var(--ease); }
+.ms-bare .ms-dock { opacity: 0; transform: translateY(18%); pointer-events: none; }
+.lyr-on.ms-bare .ms-lyrics { bottom: 9cqh; }
+.ms-tall.lyr-on.ms-bare .ms-lyrics { bottom: 8cqh; }
+
+/* ---- like (heart): outline until the track is saved, then Spotify green */
+.ms-like.liked { color: #1ed760; background: rgba(30, 215, 96, .16); }
+.ms-like.liked svg path { fill: currentColor; }
+.ms-like:disabled { opacity: .35; }
+.ms-like.pop svg { animation: ms-pop .45s var(--ease); }
+@keyframes ms-pop { 0% { transform: scale(1); } 35% { transform: scale(1.35); } 100% { transform: scale(1); } }

@@ -1,0 +1,155 @@
+/* Apple-style skin, restrained: Helvetica, warm near-black, flat grouped surfaces with hairlines, one accent.
+   No glow, no blur stacks, no gradients on cards: hierarchy comes from type size, weight and spacing, the way
+   Apple's own apps do it. Loaded after every other stylesheet; it only restyles. Remove the <link> in index.html
+   to get the original look back. */
+@font-face { font-family: "Inter"; src: url("fonts/Inter-Variable.ttf") format("truetype"); font-weight: 100 900; font-style: normal; font-display: swap; }
+:root {
+  --font-ui: Inter, "Helvetica Neue", Helvetica, -apple-system, BlinkMacSystemFont, "SF Pro Text", Arial, "Liberation Sans", Roboto, sans-serif;
+  --bg: #0b0b0c;
+  --card: #1a1a1c;
+  --card-hi: #232326;
+  --line: rgba(255, 255, 255, .07);
+  --text: #f5f5f7;
+  --muted: #98989d;
+  --dim: #636366;
+  --cpu: #64d2ff; --gpu: #32d74b; --ram: #bf5af2; --net: #ff9f0a; --up: #0a84ff; --ok: #32d74b; --err: #ff453a;
+  --apple-red: #fa2d48;/* the Music red; the only colour the chrome uses */
+  --ios-blue: #0a84ff;
+  --r: 18px;
+}
+
+html, body, button, input, textarea, select { font-family: var(--font-ui) !important; }
+body { letter-spacing: -.008em; -webkit-font-smoothing: antialiased; }
+body::before { background: none !important; }   /* no background bloom */
+
+/* ---- surfaces: flat, one step above the background, a hairline instead of a shadow */
+.card {
+  background: var(--card);
+  border: .5px solid var(--line);
+  border-radius: clamp(12px, 8cqmin, var(--r));
+  -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none;
+}
+
+/* ---- labels: small, grey, sentence case; the number is the hero */
+.w-title, .t-label, .g-label, .m-app { font-size: 12px !important; letter-spacing: 0 !important; text-transform: none !important; font-weight: 500 !important; color: var(--muted) !important; }
+.w-sub { font-size: 11.5px; color: var(--dim); }
+.mini-btn { border-radius: 8px; background: var(--card-hi); color: var(--text); font-weight: 500; padding: 3px 9px; }
+.t-val b, .g-val { font-weight: 500; letter-spacing: -.035em; }
+.t-val small { color: var(--muted); font-weight: 400; }
+
+/* ---- clock: a thin, large numeral on plain black */
+.clock { font-weight: 300; letter-spacing: -.05em; }
+.clock .colon { opacity: .4; animation: none; }
+.date { color: var(--muted); font-weight: 400; }
+
+/* ---- shortcuts: quiet tiles, tinted by their colour but never saturated */
+.key {
+  border: 0; border-radius: 16px;
+  background: color-mix(in srgb, var(--k) 14%, var(--card));
+  box-shadow: none;
+}
+.key:active { transform: scale(.96); filter: brightness(1.25); }
+.key .k-label { color: var(--text); font-weight: 500; text-shadow: none; }
+
+/* ---- the original media card */
+.art-wrap { border-radius: 10px; box-shadow: none; }
+.m-title { font-weight: 600; letter-spacing: -.015em; }
+.ic.play { background: var(--text); color: #000; }
+.fill, .bar::before { border-radius: 99px; }
+
+/* ================= navigation (same gestures as before; clearer chrome) ================= */
+#dots {
+  background: #1c1c1e; border: .5px solid rgba(255, 255, 255, .1); border-radius: 999px;
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+  bottom: 7px; padding: 4px 12px 4px 14px; min-height: 30px; gap: 8px;
+}
+#dots i { width: 7px; height: 7px; border-radius: 50%; background: rgba(255, 255, 255, .28); position: relative; transition: transform .2s, background .2s; }
+#dots i::before { content: ""; position: absolute; inset: -9px -5px; }          /* a thumb-sized target around each dot */
+#dots i.edge { transform: scale(.62); }
+#dots i.on { width: 7px; background: #fff; transform: scale(1.25); }
+#dots .dots-name { font-size: 12px; font-weight: 500; color: var(--muted); padding-left: 8px; margin-left: 2px; border-left: .5px solid rgba(255, 255, 255, .14); white-space: nowrap; max-width: 36vw; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+#dots.paused { background: #2a2113; border-color: rgba(255, 159, 10, .55); }
+#dots.paused i.on { background: #ff9f0a; }
+#ptitle { background: #1c1c1e; border: .5px solid rgba(255, 255, 255, .1); font-weight: 500; }
+
+#overview { background: var(--bg); }
+.ov-head { font-size: 20px; font-weight: 600; letter-spacing: -.02em; align-items: center; }
+.ov-head small { font-size: 12px; color: var(--dim); }
+.ov-tile { background: var(--card); border: .5px solid var(--line); border-radius: 14px; }
+.ov-tile.on { border-color: var(--apple-red); box-shadow: none; }
+.ov-map span { background: rgba(255, 255, 255, .06); border-radius: 3px; filter: grayscale(1); opacity: .8; }
+.ov-name { font-size: 12.5px; font-weight: 500; }
+.ov-pc { background: var(--card-hi); border: 0; border-radius: 999px; font-weight: 500; }
+.ov-pc.on { background: var(--apple-red); color: #fff; border: 0; }
+
+/* ---- alerts, sheets, prompts */
+.toast { background: #2c2c2e !important; border: 0 !important; border-radius: 14px; font-weight: 500; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.ap-card, .p-sheet { border-radius: 18px !important; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.ap-btn, .ps-btn, .nv-btn { border-radius: 10px !important; font-weight: 600; }
+.ap-btn.allow, .nv-btn.go { background: var(--ios-blue) !important; color: #fff !important; border-color: transparent !important; }
+.ap-btn.deny { background: var(--card-hi) !important; color: var(--err) !important; }
+#navChip, #navCard { background: #1c1c1e; border-radius: 16px; -webkit-backdrop-filter: none; backdrop-filter: none; }
+
+/* ---- sliders */
+input[type=range]::-webkit-slider-runnable-track { background: linear-gradient(to right, #fff var(--p, 50%), rgba(255, 255, 255, .16) var(--p, 50%)); height: 4px; border-radius: 2px; }
+input[type=range]::-webkit-slider-thumb { background: #fff; width: 16px; height: 16px; margin-top: -6px; box-shadow: 0 1px 4px rgba(0, 0, 0, .5); }
+
+/* ---- overview: tiles keep a readable height and the grid scrolls, so every page name can be read (it used to
+   squeeze all pages into one screen and clip the names once there were more than a dozen) */
+#ovGrid { grid-auto-rows: 74px; align-content: start; gap: 8px; --n: 4 !important; -webkit-overflow-scrolling: touch; }
+.ov-tile { padding: 8px 10px; gap: 6px; overflow: hidden; }
+.ov-name { order: -1; font-size: 13px; }
+.ov-name b { margin-right: 4px; font-weight: 500; color: var(--dim); }
+.ov-map { min-height: 0; opacity: .9; }
+@media (max-width: 520px) { #ovGrid { --n: 2 !important; } }
+
+/* ---- panel headings and list rows: same quiet vocabulary everywhere */
+.s-label { font-size: 12.5px; letter-spacing: 0; text-transform: none; font-weight: 600; color: var(--muted); }
+.s-name, .w-sum, .p-sum { color: var(--dim); }
+.q-card { background: var(--card-hi); border: 0; border-radius: 14px; }
+.q-name { font-weight: 600; letter-spacing: -.01em; }
+.q-plan { border-radius: 6px; font-weight: 500; }
+.sess { border-radius: 12px; background: var(--card-hi); }
+.sess .st, .sess.busy .st, .sess.shell .st, .sess.waiting .st { box-shadow: none; }
+.sess.waiting { border-color: transparent; background: rgba(255, 69, 58, .16); }
+.sess .nm { font-weight: 600; }
+
+/* ---- Claude sessions: one session per row, top to bottom, so every name and status reads at a glance */
+.w-sessions .s-list { grid-template-columns: 1fr; grid-auto-rows: 54px; gap: 8px; }
+.w-sessions .sess { padding: 0 14px; gap: 12px; }
+.w-sessions .sess .nm { font-size: 15px; }
+.w-sessions .sess-meta { font-size: 12px; }
+.w-sessions .sess .ds { font-size: 13px; }
+.w-sessions .sess .st { width: 10px; height: 10px; flex-basis: 10px; }
+.cal-d.today { background: var(--apple-red); color: #fff; }
+.ov-head { flex-wrap: wrap; row-gap: 6px; }
+#ovPcs { flex-wrap: wrap; justify-content: flex-end; }
+.ov-unpin { background: rgba(255, 69, 58, .18); color: #ff6961; }
+
+/* the lyrics' tap-to-hide also hides the page dots */
+#dots { transition: opacity .35s, transform .45s; }
+body.hide-dots #dots { opacity: 0; pointer-events: none; transform: translateX(-50%) translateY(120%); }
+
+/* ---- shortcuts page: real app icons on colour-coded cards ---- */
+.w-shortcuts .deck-grid { gap: 10px; }
+.key.skinned {
+  gap: clamp(6px, 4cqh, 12px);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--k) 24%, #1a1a1c) 0%, color-mix(in srgb, var(--k) 9%, #151517) 100%);
+  border: .5px solid color-mix(in srgb, var(--k) 34%, transparent);
+  border-radius: 18px;
+}
+.key.skinned .k-icon.k-brand { width: clamp(30px, 17cqh, 58px); height: clamp(30px, 17cqh, 58px); display: grid; place-items: center; line-height: 0; font-size: 0; }
+.key.skinned .k-icon.k-brand img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 3px 6px rgba(0, 0, 0, .45)); pointer-events: none; }
+.key.skinned .k-label { font-size: clamp(11px, 4.4cqh, 15px); font-weight: 600; color: rgba(255, 255, 255, .92); letter-spacing: -.005em; }
+.key.skinned:active { transform: scale(.95); filter: none; border-color: color-mix(in srgb, var(--k) 70%, transparent); }
+
+/* ================= full screen: use the whole display ================= */
+:root { --pad-r: max(8px, env(safe-area-inset-right)); --pad-l: max(8px, env(safe-area-inset-left)); }
+.page { padding: max(8px, env(safe-area-inset-top)) var(--pad-r) max(8px, env(safe-area-inset-bottom)) var(--pad-l); }
+.grid { gap: 8px; }
+/* the Music page runs edge to edge; its own content keeps clear of the camera cut-out */
+.page[data-id="apple-music"] { padding: 0; }
+.w-musicstage { border-radius: 0; }
+/* the page dots appear on a touch or a page change and fade out when idle, instead of covering the bottom row */
+#dots { transition: opacity .35s, transform .45s; }
+#dots.idle { opacity: 0; pointer-events: none; }

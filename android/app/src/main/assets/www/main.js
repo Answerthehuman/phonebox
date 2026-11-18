@@ -16,6 +16,9 @@ import './widgets/console.js';
 import './widgets/dictate.js';
 import './widgets/camera.js';
 import './widgets/spectrum.js';
+import './widgets/music.js';
+import { USE_FIXED_PAGES, fixedPages } from './pages.js';
+import { SKIN } from './shortcut-skin.js';
 
 // PhoneBox desk panel. Pages are 12 × 6 grids of widgets, designed in the agent's settings page.
 // The panel talks to the PhoneBox agent through "/agent/*", which the Android shell proxies over USB
@@ -72,6 +75,24 @@ export let online = null;
 export let lastTouch = Date.now();
 export let lastUserTouch = 0;     // last real touch or key (rules wait a while after it)
 export let wakeUntil = 0;
+const BOOT_AT = Date.now();
+// How long the panel stays awake after a touch while the night window (Settings > Display) is on.
+//  - Plugged in (USB or a charger): it never goes to sleep, the screen stays as it is.
+//  - On battery: 30 minutes of no touch by default (a screen that never turns off empties a battery in hours). Every
+//    touch pushes the time back. Change it with the "Stays awake" button in the overview: 5, 30 or 60 minutes, or
+//    Always. The choice is kept on this device.
+export const WAKE_CHOICES = [5, 30, 60, 0];   // minutes; 0 = always
+export const wakeMin = () => { const v = +store.get('wakeMin', cfg.display?.wakeMin ?? 30); return WAKE_CHOICES.includes(v) ? v : 30; };
+let pluggedAt = 0, pluggedNow = false;
+const isPlugged = () => {
+  if (performance.now() - pluggedAt > 15_000) {
+    pluggedAt = performance.now();
+    try { pluggedNow = !!(bridge?.battery && JSON.parse(bridge.battery()).plugged); } catch (_) { pluggedNow = false; }
+  }
+  return pluggedNow;
+};
+export const wakeMs = () => (isPlugged() || wakeMin() === 0 ? Infinity : wakeMin() * 60_000);
+export const wakeLabel = () => `Stays awake ${wakeMin() === 0 ? 'always' : wakeMin() + ' min'}${isPlugged() ? ' (charging: always)' : ''}`;
 export let rulesPaused = null;    // unix ms until which the agent's rules are paused
 export let nightOn = null;
 export let evSeq = null;          // last event seq the agent reported in a state (notifications, page switches…)
@@ -394,9 +415,34 @@ export const wxText = (code) => { const x = WX[code]; return x ? t(x[0]) : '—'
 
 let weatherRetry = 0;
 let weatherFor = ''; // the location the forecast in D.weather belongs to
-const weatherKey = () => { const { lat, lon } = cfg.weather || DEFAULT_CFG.weather; return `v3:${lat},${lon}`; };
+
+// Where the weather is for. The city set in the desktop settings wins. While it is still the stock one (Tallinn, the
+// agent's default for a fresh install), the place is looked up from the phone's public IP instead (city level,
+// cached for six hours), so a fresh install shows the weather where you are without any setup.
+const STOCK_PLACE = DEFAULT_CFG.weather;
+const stockPlace = () => { const c = cfg.weather || STOCK_PLACE; return Math.abs(c.lat - STOCK_PLACE.lat) < 1e-6 && Math.abs(c.lon - STOCK_PLACE.lon) < 1e-6; };
+let detectedPlace = store.get('place', null);
+export const place = () => (stockPlace() && detectedPlace ? detectedPlace : (cfg.weather || STOCK_PLACE));
+async function detectPlace() {
+  if (!stockPlace() || (detectedPlace && Date.now() - detectedPlace.at < 6 * 3600_000)) return;
+  const tries = [
+    ['https://ipwho.is/', (j) => j && j.success !== false && j.latitude != null && { city: j.city, lat: +j.latitude, lon: +j.longitude }],
+    ['https://get.geojs.io/v1/ip/geo.json', (j) => j && j.latitude != null && { city: j.city, lat: +j.latitude, lon: +j.longitude }],
+  ];
+  for (const [url, pick] of tries) {
+    try {
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), 5000);
+      const r = await fetch(url, { signal: ctl.signal }).finally(() => clearTimeout(timer));
+      const got = r.ok && pick(await r.json());
+      if (got && Number.isFinite(got.lat) && Number.isFinite(got.lon)) { detectedPlace = { ...got, city: got.city || '', at: Date.now() }; store.set('place', detectedPlace); return; }
+    } catch (_) { /* next service */ }
+  }
+}
+const weatherKey = () => { const { lat, lon } = place(); return `v3:${lat},${lon}`; };
 export async function loadWeather(force = false) {
-  const { lat, lon } = cfg.weather || DEFAULT_CFG.weather;
+  if (anyNeeds('weather')) await detectPlace();
+  const { lat, lon } = place();
   const key = weatherKey();
   const cached = store.get('wx', null);
   // a new place starts from its own cache or from "Loading…", never from the previous place's forecast
@@ -440,7 +486,7 @@ export function wxLines() {
   return {
     icon: wxIcon(c.weather_code, c.is_day),
     temp: Math.round(c.temperature_2m) + '°',
-    desc: `${desc} · ${cfg.weather?.city || ''}`,
+    desc: `${desc} · ${place().city || ''}`,
     range: (hi != null ? `↑${hi}° ↓${lo}° · ` : '') + t('wx.feelsLike', { deg: Math.round(c.apparent_temperature) }),
   };
 }
@@ -514,7 +560,12 @@ export function keyButton(s) {
   b.style.setProperty('--k', s.color || '#6b7280');
   b.dataset.id = s.id;
   b.addEventListener('click', () => runShortcut(b, s.id));
-  if (s.iconRev != null) applyShortcutIcon(icon, s.id);
+  const skin = SKIN[s.id];
+  if (skin) {   // the real app icon and a colour for the tile (shortcut-skin.js)
+    const img = new Image(); img.alt = ''; img.src = skin.src; img.draggable = false;
+    icon.replaceChildren(img); icon.classList.add('k-brand');
+    b.style.setProperty('--k', skin.color); b.classList.add('skinned');
+  } else if (s.iconRev != null) applyShortcutIcon(icon, s.id);
   return b;
 }
 
@@ -834,7 +885,7 @@ export const levelOf = (v) => v.level || (typeof v.value === 'string' ? (/^(ok|p
 // ---------------------------------------------------------------- notifications (POST /api/notify)
 export function handleNotify(d) {
   const level = d.level === 'error' ? 'err' : d.level === 'ok' || d.level === 'success' ? 'ok' : d.level === 'warn' ? 'warn' : '';
-  if (d.wake && nightOn) { wakeUntil = Date.now() + 30_000; setNight(false); }
+  if (d.wake && nightOn) { wakeUntil = Date.now() + wakeMs(); setNight(false); }
   undim();
   toast(d.text || '', level, d.title || '', d.seconds || 5);
   if (d.vibrate !== false) buzz(level === 'err' ? '0,90,90,90,90,160' : '0,70,110,70');
@@ -895,7 +946,7 @@ export function renderApproval() {
     approvalShown = a.id;
     lastTouch = Date.now();
     undim();
-    if (nightOn) { wakeUntil = Date.now() + 60_000; setNight(false); }
+    if (nightOn) { wakeUntil = Date.now() + Math.max(60_000, wakeMs()); setNight(false); }
     buzz('0,120,80,120,80,240');
     // A prompt whose answer is still in flight comes back locked: it can be shown again while its own post runs.
     $('apAllow').disabled = $('apDeny').disabled = $('apSkip').disabled = submitting.has(a.id);
@@ -1005,8 +1056,9 @@ export function portraitLayout(widgets) {
 
 export function buildLayout() {
   const enabled = (cfg.pages || []).filter((p) => p.enabled !== false && Array.isArray(p.widgets));
-  const next = enabled.length ? enabled : FALLBACK_PAGES;
   const portrait = isPortrait();
+  // The seven fixed pages (pages.js) replace the layout saved in the agent; see USE_FIXED_PAGES there.
+  const next = USE_FIXED_PAGES ? fixedPages(portrait) : (enabled.length ? enabled : FALLBACK_PAGES);
   const h12 = hour12();
   // the active language belongs in the key: the widgets render their texts once, when they are created
   const key = JSON.stringify([next, cfg.shortcuts, cfg.display?.showSeconds, cfg.display?.hour12, h12, cfg.display?.appearance, portrait, I18n?.getLang()]);
@@ -1173,13 +1225,38 @@ export function buildDots() {
     e.stopPropagation();
     togglePagePaused();
   });
-  dots.replaceChildren(...pages.map(() => h('i')), pagePauseBtn);
+  // Only a window of seven dots is drawn (the rest would be unreadable specks); the current page's name sits beside
+  // them, and tapping a dot goes straight to that page. Tapping anywhere else on the bar still opens the overview.
+  dots.replaceChildren(...pages.map((_, i) => { const d = h('i'); d.dataset.i = i; return d; }), h('span', 'dots-name'), pagePauseBtn);
   dots.hidden = false;
   syncPagePauseUi();
+  wakeDots();
 }
 
+// The page dots fade out after a few idle seconds so the pages can use the whole screen; a touch or a page change
+// brings them back.
+let dotsTimer = 0;
+export function wakeDots() {
+  const d = $('dots');
+  if (!d) return;
+  d.classList.remove('idle');
+  clearTimeout(dotsTimer);
+  dotsTimer = setTimeout(() => d.classList.add('idle'), 3000);
+}
+const DOT_WINDOW = 7;
 export function updateDots() {
-  $('dots').querySelectorAll('i').forEach((d, i) => d.classList.toggle('on', i === curPage));
+  const all = $('dots').querySelectorAll('i');
+  const n = all.length, start = Math.max(0, Math.min(n - DOT_WINDOW, curPage - Math.floor(DOT_WINDOW / 2)));
+  all.forEach((d, i) => {
+    const inside = i >= start && i < start + DOT_WINDOW;
+    d.classList.toggle('on', i === curPage);
+    d.hidden = !inside;
+    // the outermost dot of a window that does not reach the end of the list is drawn small: "there is more this way"
+    d.classList.toggle('edge', inside && ((i === start && start > 0) || (i === start + DOT_WINDOW - 1 && start + DOT_WINDOW < n)));
+  });
+  wakeDots();
+  const name = $('dots').querySelector('.dots-name');
+  if (name) name.textContent = pages[curPage] ? `${curPage + 1}/${n}  ${pages[curPage].title}` : '';
 }
 
 export let snapTimer = 0;
@@ -1470,6 +1547,9 @@ export function onScroll() {
 }
 pager.addEventListener('scroll', onScroll, { passive: true });
 
+// "Unpin screen" in the overview: one tap instead of holding Back and Overview together. It lasts until the app is
+// reopened, so the next settings sync from the computer does not pin the screen again.
+let unpinnedByHand = false;
 export function openOverview() {
   haptic();
   const ov = $('overview');
@@ -1487,7 +1567,25 @@ export function openOverview() {
   renderRulesBtn();
   // several paired computers: switch between them here (a USB cable always wins)
   const pcs = pairedPcs();
-  $('ovPcs').replaceChildren(...(pcs.length > 1 ? pcs.map((pc) => {
+  const musicAt = pages.findIndex((p) => p.id === 'apple-music');
+  const musicBtn = musicAt < 0 ? null : h('button', 'ov-pc ov-music' + (musicAt === curPage ? ' on' : ''), '♪ ' + (D.state?.media?.title ? t('w.nowPlaying') : 'Music'));
+  musicBtn?.addEventListener('click', (e) => { e.stopPropagation(); haptic(); closeOverview(); goPage(musicAt, true); });
+  const unpinBtn = bridge?.setPinned ? h('button', 'ov-pc ov-unpin', 'Unpin screen') : null;
+  unpinBtn?.addEventListener('click', (e) => {
+    e.stopPropagation(); haptic();
+    unpinnedByHand = true;
+    try { bridge.setPinned(false); } catch (_) {}
+    closeOverview(); toast('Screen unpinned. Home and Recents work again.', 'ok');
+  });
+  const wakeBtn = h('button', 'ov-pc ov-wake', wakeLabel());
+  wakeBtn.addEventListener('click', (e) => {
+    e.stopPropagation(); haptic();
+    const next = WAKE_CHOICES[(WAKE_CHOICES.indexOf(wakeMin()) + 1) % WAKE_CHOICES.length];
+    store.set('wakeMin', next);
+    wakeBtn.textContent = wakeLabel();
+    if (Date.now() < wakeUntil) wakeUntil = Date.now() + wakeMs();
+  });
+  $('ovPcs').replaceChildren(...(musicBtn ? [musicBtn] : []), wakeBtn, ...(unpinBtn ? [unpinBtn] : []), ...(pcs.length > 1 ? pcs.map((pc) => {
     const b = h('button', 'ov-pc' + (pc.active ? ' on' : ''), '🖥️ ' + (pc.name || t('panel.computer')));
     b.addEventListener('click', (e) => { e.stopPropagation(); switchPc(pc); });
     return b;
@@ -1546,6 +1644,8 @@ $('dots').addEventListener('click', (e) => {
     }
   }
   if (e.target.closest('.page-pause')) return;
+  const dot = e.target.closest('i[data-i]');
+  if (dot) { haptic(); goPage(+dot.dataset.i, Math.abs(+dot.dataset.i - curPage) > 1); return; }
   openOverview();
 });
 
@@ -1606,7 +1706,7 @@ pager.addEventListener('touchcancel', () => { swipeTracking = false; }, { passiv
 /** Called by the Android shell (volume keys) and by arrow keys in a desktop browser. */
 window.onAndroidKey = (k) => {
   lastTouch = lastUserTouch = Date.now();
-  if (nightOn) { wakeUntil = Date.now() + 30_000; setNight(false); return; }
+  if (nightOn || Date.now() < wakeUntil) { wakeUntil = Date.now() + wakeMs(); if (nightOn) { setNight(false); return; } }
   if (!$('overview').hidden) closeOverview();
   if (k === 'next') goPage(curPage + 1 >= pages.length ? 0 : curPage + 1, true);
   else if (k === 'prev') goPage(curPage - 1 < 0 ? pages.length - 1 : curPage - 1, true);
@@ -1630,8 +1730,10 @@ window.addEventListener('resize', () => { buildLayout(); goPage(curPage, true); 
   if (dimmed) wakeFromDim();
   if (e.target?.closest?.('#navCard, #navChip')) return;
   lastTouch = lastUserTouch = Date.now();
+  wakeDots();
   if (navQueue.length) { navQueue = navQueue.filter((r) => r.kind !== 'home'); pump(); }
-  if (nightOn) { wakeUntil = Date.now() + 30_000; setNight(false); }
+  // a touch while awake pushes the sleep time back, so it never dims while the screen is being used
+  if (nightOn || Date.now() < wakeUntil) { wakeUntil = Date.now() + wakeMs(); if (nightOn) setNight(false); }
 }, { passive: true, capture: true }));
 
 // ---------------------------------------------------------------- clock tick & night mode
@@ -1682,7 +1784,7 @@ window.onAndroidSensor = (kind, value) => {
   } else if (kind === 'proximity' && value === true && cfg.display?.proximityWake !== false && (nightOn || dimmed)) {
     undim();
     if (!nightOn) return;
-    wakeUntil = Date.now() + 30_000;
+    wakeUntil = Date.now() + wakeMs();
     setNight(false);
   }
 };
@@ -1754,7 +1856,12 @@ export function tick() {
   $('nDate').textContent = now.toLocaleDateString(LOCALE, { weekday: 'long', day: 'numeric', month: 'long' });
   if (darkSince && Date.now() - darkSince > 30_000) darkRoom = true;
   const dark = darkRoom && cfg.display?.nightWhenDark === true;
-  setNight((isNight(now) || dark) && Date.now() > wakeUntil);
+  // unplugged while "always awake" was in force: start the battery timer now instead of staying awake for good
+  if (wakeUntil === Infinity && wakeMs() !== Infinity) wakeUntil = Date.now() + wakeMs();
+  // The night screen needs the idle time too: after the touch-based wake time, and not before the screen has been left alone
+  // for that long (the night window opening at 00:30 must not blank a screen that is in use). Plugged in: never.
+  const leftAlone = Date.now() - Math.max(lastUserTouch, BOOT_AT) > wakeMs();
+  setNight((isNight(now) || dark) && Date.now() > wakeUntil && leftAlone);
   if (!PREVIEW && idleDue() && !navQueue.some((r) => r.kind === 'home')) {
     if (curPage === homeIndex()) { closeSheet(); closeOverview(); lastNav = Date.now(); } // only a sheet to close
     else { navQueue.push({ kind: 'home', at: Date.now(), priority: -1 }); pump(); }
@@ -1783,7 +1890,7 @@ export function applyDisplay() {
   renderRulesBtn();
   if (PREVIEW || !bridge) return;
   try { bridge.setVolumeKeys && bridge.setVolumeKeys(d.volumeKeys !== false); } catch (_) {}
-  try { bridge.setPinned && bridge.setPinned(d.pin === true); } catch (_) {}
+  try { bridge.setPinned && bridge.setPinned(d.pin === true && !unpinnedByHand); } catch (_) {}
   try { bridge.setOrientation && bridge.setOrientation(['portrait', 'auto'].includes(d.orientation) ? d.orientation : 'landscape'); } catch (_) {}
   try { bridge.setHomeScreen && bridge.setHomeScreen(d.homeScreen === true); } catch (_) {}
   applyBrightness(true);
