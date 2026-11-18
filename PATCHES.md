@@ -55,3 +55,18 @@ Base: PhoneBox 0.9.19 (`ersinkoc/phonebox`).
 
 Also: the repository is pushed with `git config http.postBuffer 524288000` (the default buffer made the first push
 of this large history fail without a message).
+
+## Patch 3: smoother Music page
+
+The jump between the record view and the lyrics / queue view stuttered. Causes and fixes (`music.css`, `widgets/music.js`):
+- The record, title and controls animated `left`, `top`, `width` and `height`, which re-runs layout on every frame. They
+  now switch layout at once and each block is played from its old position with a transform (FLIP, Web Animations API).
+- Lyric lines used a blur filter and colour transitions on every line. They now fade with opacity and a small scale only.
+- Moving to the next lyric rewrote every line; it now touches only the lines near the old and new position.
+- The progress bar moves with `transform: scaleX` instead of changing its width, and its text updates once a second.
+- Removed a blend mode over the turning record and the always-on layer hints; the hidden lyrics and queue panels are
+  `visibility: hidden` when not shown.
+
+Measured on the phone with `dumpsys gfxinfo` while switching views and the record spins: janky frames 20.7 % -> 5.7 %,
+95th percentile frame time 105 ms -> 40 ms (one earlier before-run did not land on the Music page, so only the valid one
+is quoted).

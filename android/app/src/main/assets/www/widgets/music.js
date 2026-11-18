@@ -148,6 +148,8 @@ W.musicstage = {
     const q = (s) => box.querySelector(s);
     const art = q('.ms-art'), bg = q('.ms-bg img'), spin = q('.ms-spin'), vol = q('.ms-volr');
     const lines = q('.ms-lines'), note = q('.ms-note'), lyrics = q('.ms-lyrics');
+    const fill = q('.ms-fill'), posEl = q('.ms-pos'), durEl = q('.ms-dur');
+    let shownPos = '';
     let artId = -1, lyricKey = '', lyr = null, active = -1, view = store.get('ms-view', '');   // '', 'lyrics' or 'queue'
     let volTimer = 0, volumeRelease = 0, visible = true, raf = 0, angle = 0, omega = 0, last = 0, ro = null;
     // With the lyrics' controls hidden the page dots go too (same tap, as in Spotify); they come back with the controls,
@@ -205,10 +207,25 @@ W.musicstage = {
         invalidateDeckState(); emit('tick');
       } catch (_) {}
     }));
+    // The views differ in layout (size and position of the record, title and controls). Animating left/top/width/height
+    // re-runs layout every frame, which is what made this page stutter. Instead the new layout is applied at once and
+    // each block is played from where it was to where it is with a transform (FLIP), which the GPU does on its own.
+    const EASE = 'cubic-bezier(.22,.9,.24,1)';
+    const moveFrom = (el, from, scale) => {
+      if (!el.animate) return;
+      const to = el.getBoundingClientRect();
+      const dx = from.left - to.left, dy = from.top - to.top, sx = scale && to.width ? from.width / to.width : 1;
+      if (!dx && !dy && sx === 1) return;
+      el.animate([{ transformOrigin: '0 0', transform: `translate(${dx}px, ${dy}px) scale(${sx})` }, { transformOrigin: '0 0', transform: 'none' }], { duration: 420, easing: EASE });
+    };
+    const fadeIn = (el) => { if (el.animate) el.animate([{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'none' }], { duration: 320, easing: 'ease-out' }); };
+    const deck = q('.ms-deck'), info = q('.ms-info'), dock = q('.ms-dock');
     const setView = (next) => {
       haptic();
+      const deckFrom = deck.getBoundingClientRect();
       view = view === next ? '' : next; store.set('ms-view', view);
       paintView();
+      moveFrom(deck, deckFrom, true); fadeIn(info); fadeIn(dock);
       if (view === 'lyrics') { active = -2; follow(true); }
       if (view === 'queue') loadQueue(true);
     };
@@ -304,13 +321,16 @@ W.musicstage = {
       let lo = 0, hi = L.length - 1;
       while (lo <= hi) { const mid = (lo + hi) >> 1; if (L[mid].t <= pos) { i = mid; lo = mid + 1; } else hi = mid - 1; }
       if (i === active && !force) return;
+      const prev = active;
       active = i;
       const kids = lines.children;
-      for (let k = 0; k < kids.length; k++) {
+      // lines further than 6 from both the old and the new position are already at their dimmest: leave them alone
+      const full = force || prev < -1;
+      const from = full ? 0 : Math.max(0, Math.min(prev, i) - 6), to = full ? kids.length - 1 : Math.min(kids.length - 1, Math.max(prev, i) + 6);
+      for (let k = from; k <= to; k++) {
         const d = k - i;
-        const el = kids[k];
-        el.className = 'ms-line' + (L[k].text ? '' : ' gap') + (d === 0 ? ' now' : d < 0 ? ' past' : '') + (Math.abs(d) === 1 ? ' near' : '');
-        el.style.setProperty('--ld', Math.min(5, Math.abs(d)));
+        kids[k].classList.toggle('now', d === 0);
+        kids[k].style.setProperty('--ld', Math.min(5, Math.abs(d)));
       }
       const el = kids[Math.max(0, i)];
       if (!el) return;
@@ -364,12 +384,13 @@ W.musicstage = {
           if (!media) return;
           if (media.durMs > 0) {
             const pos = Math.min(media.durMs, media.posMs + (media.playing ? performance.now() - media.at : 0));
-            q('.ms-fill').style.width = (pos / media.durMs) * 100 + '%';
-            q('.ms-pos').textContent = fmtTime(pos);
-            q('.ms-dur').textContent = '-' + fmtTime(media.durMs - pos);
+            fill.style.transform = `scaleX(${pos / media.durMs})`;
+            const a1 = fmtTime(pos);
+            if (a1 !== shownPos) { shownPos = a1; posEl.textContent = a1; durEl.textContent = '-' + fmtTime(media.durMs - pos); }
           } else if (media.app === 'Internet Radio') {
-            q('.ms-fill').style.width = media.playing ? '100%' : '0';
-            q('.ms-pos').textContent = fmtTime(Math.max(0, (media.posMs || 0) + (media.playing ? performance.now() - media.at : 0)));
+            fill.style.transform = media.playing ? 'scaleX(1)' : 'scaleX(0)';
+            const a2 = fmtTime(Math.max(0, (media.posMs || 0) + (media.playing ? performance.now() - media.at : 0)));
+            if (a2 !== shownPos) { shownPos = a2; posEl.textContent = a2; }
           }
           if (view === 'lyrics') follow(false);
           if (view === 'queue') loadQueue(false);
@@ -387,7 +408,7 @@ W.musicstage = {
           q('.ms-title').textContent = t('w.nothingPlaying');
           q('.ms-artist').textContent = t('w.pressToResume');
           q('.ms-source').textContent = '';
-          q('.ms-fill').style.width = '0'; q('.ms-pos').textContent = '0:00'; q('.ms-dur').textContent = '0:00';
+          fill.style.transform = 'scaleX(0)'; shownPos = ''; posEl.textContent = '0:00'; durEl.textContent = '0:00';
           if (artId !== 0) { artId = 0; art.classList.remove('on'); bg.classList.remove('on'); setArtColor(null); }
           syncLyrics(null);
           return;
