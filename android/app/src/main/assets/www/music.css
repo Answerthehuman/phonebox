@@ -16,7 +16,7 @@
   --ia: left;
   --dl: var(--il);
   --dr: var(--ir);
-  --db: 7cqh;
+  --db: calc(var(--nav-h, 30px) + 2cqh);
 }
 .ms-root .ms-stage { position: absolute; inset: 0; }
 
@@ -50,8 +50,8 @@
   background: conic-gradient(from 25deg, transparent 0 7%, rgba(255, 255, 255, .17) 12%, transparent 20% 50%, rgba(255, 255, 255, .13) 62%, transparent 70%); }
 
 /* ---- tonearm */
-.ms-arm { position: absolute; right: -3%; top: -1%; width: 0; height: 0; transform-origin: 0 0; transform: rotate(-9deg); transition: transform .9s var(--ease), opacity .5s; pointer-events: none; opacity: .96; }
-.playing .ms-arm { transform: rotate(21deg); }
+.ms-arm { position: absolute; left: -3%; top: -1%; width: 0; height: 0; transform-origin: 0 0; transform: rotate(9deg); transition: transform .9s var(--ease), opacity .5s; pointer-events: none; opacity: .96; }
+.playing .ms-arm { transform: rotate(-21deg); }
 .ms-pivot { position: absolute; left: -2.6cqh; top: -2.6cqh; width: 5.2cqh; height: 5.2cqh; border-radius: 50%; background: #2c2c2e; box-shadow: 0 0 0 .5cqh #3a3a3c, 0 .6cqh 1.2cqh rgba(0, 0, 0, .5); }
 .ms-bar { position: absolute; left: -.3cqh; top: 0; width: .6cqh; min-width: 2px; height: calc(var(--d) * .66); border-radius: 1cqh; background: #8e8e93; }
 .ms-head { position: absolute; left: -1.1cqh; top: calc(var(--d) * .66 - .4cqh); width: 2.2cqh; height: 3.6cqh; border-radius: .5cqh; background: #636366; transform: rotate(-12deg); transform-origin: 50% 0; }
@@ -64,7 +64,7 @@
 .ms-artist { font-size: clamp(13px, 5.6cqh, 21px); font-weight: 500; color: rgba(255, 255, 255, .66); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ---- lyrics */
-.ms-lyrics { position: absolute; left: 5cqw; right: 5cqw; top: 25cqh; bottom: 27cqh; overflow: hidden; opacity: 0; pointer-events: none; transition: opacity .5s;
+.ms-lyrics { position: absolute; left: 5cqw; right: 5cqw; top: 25cqh; bottom: calc(27cqh + var(--nav-h, 30px) - 8px); overflow: hidden; opacity: 0; pointer-events: none; transition: opacity .5s;
   -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 16%, #000 80%, transparent 100%); mask-image: linear-gradient(180deg, transparent 0, #000 16%, #000 80%, transparent 100%); }
 .lyr-on .ms-lyrics { opacity: 1; pointer-events: auto; transition-delay: .25s; }
 .ms-lines { transition: transform .6s var(--ease); will-change: transform; padding: 4cqh 0 24cqh; }
@@ -110,7 +110,7 @@
 .ms-root.idle .ms-arm { opacity: 0; }
 
 /* ---- lyrics view (landscape): small record and title on top, lyrics in the middle */
-.w-musicstage.lyr-on { --d: 17cqh; --dx: 5cqw; --dy: 6cqh; --il: calc(5cqw + 17cqh + 3cqw); --it: 6cqh; --ih: 17cqh; --dl: 5cqw; --dr: 5cqw; --db: 3cqh; }
+.w-musicstage.lyr-on { --d: 17cqh; --dx: 5cqw; --dy: 6cqh; --il: calc(5cqw + 17cqh + 3cqw); --it: 6cqh; --ih: 17cqh; --dl: 5cqw; --dr: 5cqw; --db: calc(var(--nav-h, 30px) + 1cqh); }
 .lyr-on .ms-title { font-size: clamp(15px, 6.4cqh, 26px); -webkit-line-clamp: 1; }
 .lyr-on .ms-artist { font-size: clamp(12px, 4.6cqh, 18px); }
 .lyr-on .ms-arm { opacity: 0; }
@@ -121,7 +121,7 @@
 .lyr-on .ms-ctl { gap: 3cqw; }
 
 /* ---- tall (portrait phone) */
-.ms-tall { --d: min(72cqw, 40cqh); --dx: calc((100cqw - var(--d)) / 2); --dy: 7cqh; --il: 8cqw; --ir: 8cqw; --it: calc(7cqh + var(--d) + 4.5cqh); --ia: center; --dl: 7cqw; --dr: 7cqw; --db: 3.5cqh; }
+.ms-tall { --d: min(72cqw, 40cqh); --dx: calc((100cqw - var(--d)) / 2); --dy: 7cqh; --il: 8cqw; --ir: 8cqw; --it: calc(7cqh + var(--d) + 4.5cqh); --ia: center; --dl: 7cqw; --dr: 7cqw; --db: calc(var(--nav-h, 30px) + 1.5cqh); }
 .ms-tall .ms-info { align-items: stretch; }
 .ms-tall .ms-title { font-size: clamp(20px, 3.8cqh, 30px); }
 .ms-tall .ms-artist { font-size: clamp(14px, 2.4cqh, 19px); }
@@ -129,8 +129,8 @@
 .ms-tall .ms-btn { width: 8.5cqh; height: 8.5cqh; }
 .ms-tall .ms-btn.play { width: 11cqh; height: 11cqh; }
 .ms-tall .ms-prog { font-size: 12px; }
-.ms-tall.lyr-on { --d: 15cqw; --dx: 6cqw; --dy: 3.5cqh; --il: calc(6cqw + 15cqw + 3.5cqw); --ir: 6cqw; --it: 3.5cqh; --ih: 15cqw; --ia: left; --dl: 6cqw; --dr: 6cqw; --db: 3cqh; }
-.ms-tall .ms-lyrics { left: 7cqw; right: 7cqw; top: calc(3.5cqh + 15cqw + 2.5cqh); bottom: 24cqh; }
+.ms-tall.lyr-on { --d: 15cqw; --dx: 6cqw; --dy: 3.5cqh; --il: calc(6cqw + 15cqw + 3.5cqw); --ir: 6cqw; --it: 3.5cqh; --ih: 15cqw; --ia: left; --dl: 6cqw; --dr: 6cqw; --db: calc(var(--nav-h, 30px) + 1cqh); }
+.ms-tall .ms-lyrics { left: 7cqw; right: 7cqw; top: calc(3.5cqh + 15cqw + 2.5cqh); bottom: calc(24cqh + var(--nav-h, 30px) - 8px); }
 .ms-tall .ms-line { font-size: clamp(20px, 3.4cqh, 30px); }
 .ms-tall.lyr-on .ms-title { font-size: clamp(16px, 2.6cqh, 22px); }
 .ms-tall.lyr-on .ms-dock { grid-template-areas: "prog prog prog" "ctl ctl ctl" "lyr . vol"; }
@@ -141,7 +141,7 @@
 @media (prefers-reduced-motion: reduce) { .ms-lines, .ms-line, .ms-deck, .ms-info, .ms-dock, .ms-arm { transition: none; } }
 
 /* ---- queue panel: same slot as the lyrics */
-.ms-queue { position: absolute; left: 5cqw; right: 5cqw; top: 25cqh; bottom: 27cqh; overflow-y: auto; opacity: 0; pointer-events: none; transition: opacity .4s; -webkit-overflow-scrolling: touch; }
+.ms-queue { position: absolute; left: 5cqw; right: 5cqw; top: 25cqh; bottom: calc(27cqh + var(--nav-h, 30px) - 8px); overflow-y: auto; opacity: 0; pointer-events: none; transition: opacity .4s; -webkit-overflow-scrolling: touch; }
 .show-queue .ms-queue { opacity: 1; pointer-events: auto; }
 .show-queue .ms-lyrics { display: none; }
 .ms-qhead { font-size: 12px; font-weight: 500; color: rgba(255, 255, 255, .55); padding: 0 0 6px; }
@@ -153,7 +153,7 @@
 .ms-qtxt b { font-size: 15px; font-weight: 600; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ms-qtxt small { font-size: 12.5px; color: rgba(255, 255, 255, .55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ms-qnote:empty { display: none; }
-.ms-tall .ms-queue { left: 7cqw; right: 7cqw; top: calc(3.5cqh + 15cqw + 2.5cqh); bottom: 24cqh; }
+.ms-tall .ms-queue { left: 7cqw; right: 7cqw; top: calc(3.5cqh + 15cqw + 2.5cqh); bottom: calc(24cqh + var(--nav-h, 30px) - 8px); }
 .ms-tall:not(.lyr-on) .ms-queue { display: none; }
 
 /* ---- lyrics full view: a tap on the empty part of the lyrics hides everything below them */

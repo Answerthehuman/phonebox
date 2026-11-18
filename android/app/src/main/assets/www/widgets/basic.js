@@ -588,7 +588,7 @@ W.sessions = {
       const panel = h('div', 'session-panel');
       panel.setAttribute('role', 'dialog');
       panel.setAttribute('aria-modal', 'true');
-      const title = h('h2', null, s.project || s.name);
+      const title = h('h2', null, s.name || s.project);
       const close = h('button', 'session-close', '✕');
       close.setAttribute('aria-label', 'Close session details');
       const onKey = (e) => { if (e.key === 'Escape') dismiss(); };
@@ -632,7 +632,7 @@ W.sessions = {
         const rows = sorted.length ? sorted.map((s) => {
           const row = h('button', 'sess ' + s.status,
             h('span', 'st'), h('span', 'tl ' + s.tool, s.tool === 'claude' ? '✳' : '◎'),
-            h('span', 'sess-main', h('span', 'nm', s.project || s.name), h('span', 'sess-meta', [s.model, s.effort].filter(Boolean).join(' · ') || statusText(s))),
+            h('span', 'sess-main', h('span', 'nm', s.name || s.project), h('span', 'sess-meta', [s.project && s.project !== s.name ? s.project : '', [s.model, s.effort].filter(Boolean).join(' · ') || statusText(s)].filter(Boolean).join(' · '))),
             h('span', 'ds', shortDur(Date.now() - s.since)));
           row.type = 'button';
           row.addEventListener('click', () => openDetails(s));

@@ -2,6 +2,9 @@
 // always shows the same short list. Set USE_FIXED_PAGES to false to go back to the layout saved in the agent's
 // settings page (the 30-odd template pages).
 export const USE_FIXED_PAGES = true;
+// The page you are on stays until you leave it: no idle return to Home, no rules or webhooks switching pages, no pause
+// button. The one automatic move is to the Sessions page when Claude Code asks for permission (main.js).
+export const KEEP_PAGE = true;
 
 export function fixedPages(portrait) {
   const page = (id, title, icon, widgets) => ({ id, title, icon, enabled: true, widgets: widgets.map((w, i) => ({ id: `${id}-${i}`, options: {}, ...w })) });

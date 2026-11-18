@@ -153,3 +153,18 @@ body.hide-dots #dots { opacity: 0; pointer-events: none; transform: translateX(-
 /* the page dots appear on a touch or a page change and fade out when idle, instead of covering the bottom row */
 #dots { transition: opacity .35s, transform .45s; }
 #dots.idle { opacity: 0; pointer-events: none; }
+
+/* ================= Patch 2: a reserved strip for the page dots, no camera-cutout gutter ================= */
+:root { --nav-h: 30px; --pad-r: 6px; --pad-l: 6px; }
+/* every page uses the whole width (the camera hole is ignored) and keeps the bottom strip for the dots */
+.page { padding: 6px 6px calc(var(--nav-h) + 2px) 6px; }
+/* the Music page is edge to edge; its controls sit above the strip (music.css) */
+.page[data-id="apple-music"] { padding: 0; }
+/* the dots bar: slim, always shown, sitting in the strip instead of on top of the content */
+#dots { bottom: 3px; min-height: 24px; height: 24px; padding: 0 12px 0 13px; gap: 7px; }
+#dots.idle { opacity: 1; pointer-events: auto; }
+#dots i { width: 6px; height: 6px; }
+#dots i::before { inset: -10px -6px; }
+#dots .dots-name { font-size: 11.5px; }
+/* no pause / play anywhere */
+.page-pause, #ovRules { display: none !important; }

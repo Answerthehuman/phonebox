@@ -17,7 +17,7 @@ import './widgets/dictate.js';
 import './widgets/camera.js';
 import './widgets/spectrum.js';
 import './widgets/music.js';
-import { USE_FIXED_PAGES, fixedPages } from './pages.js';
+import { USE_FIXED_PAGES, KEEP_PAGE, fixedPages } from './pages.js';
 import { SKIN } from './shortcut-skin.js';
 
 // PhoneBox desk panel. Pages are 12 × 6 grids of widgets, designed in the agent's settings page.
@@ -944,6 +944,8 @@ export function renderApproval() {
   if (!a) { box.hidden = true; approvalShown = null; return; }
   if (approvalShown !== a.id) {
     approvalShown = a.id;
+    // Claude is waiting for an answer: show it on the Sessions page, wherever you were
+    if (KEEP_PAGE && !PREVIEW) { const at = pages.findIndex((p) => p.id === 'sessions'); if (at >= 0) { closeOverview(); if (curPage !== at) goPage(at, true); } }
     lastTouch = Date.now();
     undim();
     if (nightOn) { wakeUntil = Date.now() + Math.max(60_000, wakeMs()); setNight(false); }
@@ -1227,7 +1229,8 @@ export function buildDots() {
   });
   // Only a window of seven dots is drawn (the rest would be unreadable specks); the current page's name sits beside
   // them, and tapping a dot goes straight to that page. Tapping anywhere else on the bar still opens the overview.
-  dots.replaceChildren(...pages.map((_, i) => { const d = h('i'); d.dataset.i = i; return d; }), h('span', 'dots-name'), pagePauseBtn);
+  if (KEEP_PAGE) pagePauseBtn = null;   // no pause / play button: pages never switch by themselves
+  dots.replaceChildren(...pages.map((_, i) => { const d = h('i'); d.dataset.i = i; return d; }), h('span', 'dots-name'), ...(pagePauseBtn ? [pagePauseBtn] : []));
   dots.hidden = false;
   syncPagePauseUi();
   wakeDots();
@@ -1329,7 +1332,7 @@ const dsp = () => cfg.display || {};
 const pageLabel = (i) => { const p = pages[i]; return p ? `${p.icon || ''} ${p.title}`.trim() : ''; };
 
 export function requestPage(d) {
-  if (PREVIEW) return;
+  if (PREVIEW || KEEP_PAGE) return;   // KEEP_PAGE: rules, webhooks and notifications do not move you
   const page = resolvePage(d.page);
   if (page < 0) return;
   const rule = d.rule || null;
@@ -1360,7 +1363,7 @@ export function requestBack(rule) {
 /** Seconds of no touch after which this page goes home (0 = stay). */
 const idleLimit = () => pages[curPage]?.idleSec ?? dsp().idleReturnSec ?? 90;
 function idleDue() {
-  if (pagePaused) return false;
+  if (KEEP_PAGE || pagePaused) return false;   // KEEP_PAGE: never go back to Home on your own
   const idle = idleLimit();
   if (!(idle > 0)) return false;
   const maxHold = (dsp().holdMaxMin ?? 30) * 60_000;
@@ -1516,6 +1519,7 @@ export async function toggleRulesPause() {
 export function renderRulesBtn() {
   const b = $('ovRules');
   if (!b) return;
+  if (KEEP_PAGE) { b.hidden = true; return; }   // nothing to pause: rules do not switch pages
   const paused = rulesPaused && rulesPaused > Date.now();
   b.hidden = PREVIEW || !online;
   b.classList.toggle('on', !!paused);
@@ -1549,7 +1553,8 @@ pager.addEventListener('scroll', onScroll, { passive: true });
 
 // "Unpin screen" in the overview: one tap instead of holding Back and Overview together. It lasts until the app is
 // reopened, so the next settings sync from the computer does not pin the screen again.
-let unpinnedByHand = false;
+let pinOverride = null;
+const pinLabel = () => ((pinOverride ?? cfg.display?.pin === true) ? 'Unpin screen' : 'Pin screen');   // null: follow the desktop setting; true / false: chosen with the button below
 export function openOverview() {
   haptic();
   const ov = $('overview');
@@ -1570,12 +1575,13 @@ export function openOverview() {
   const musicAt = pages.findIndex((p) => p.id === 'apple-music');
   const musicBtn = musicAt < 0 ? null : h('button', 'ov-pc ov-music' + (musicAt === curPage ? ' on' : ''), '♪ ' + (D.state?.media?.title ? t('w.nowPlaying') : 'Music'));
   musicBtn?.addEventListener('click', (e) => { e.stopPropagation(); haptic(); closeOverview(); goPage(musicAt, true); });
-  const unpinBtn = bridge?.setPinned ? h('button', 'ov-pc ov-unpin', 'Unpin screen') : null;
-  unpinBtn?.addEventListener('click', (e) => {
+  const pinBtn = bridge?.setPinned ? h('button', 'ov-pc ov-pin', pinLabel()) : null;
+  pinBtn?.addEventListener('click', (e) => {
     e.stopPropagation(); haptic();
-    unpinnedByHand = true;
-    try { bridge.setPinned(false); } catch (_) {}
-    closeOverview(); toast('Screen unpinned. Home and Recents work again.', 'ok');
+    pinOverride = !(pinOverride ?? cfg.display?.pin === true);
+    try { bridge.setPinned(pinOverride); } catch (_) {}   // Android asks once to confirm when pinning
+    closeOverview();
+    toast(pinOverride ? 'Pinning the screen. Confirm on the phone if it asks.' : 'Screen unpinned. Home and Recents work again.', 'ok');
   });
   const wakeBtn = h('button', 'ov-pc ov-wake', wakeLabel());
   wakeBtn.addEventListener('click', (e) => {
@@ -1585,7 +1591,7 @@ export function openOverview() {
     wakeBtn.textContent = wakeLabel();
     if (Date.now() < wakeUntil) wakeUntil = Date.now() + wakeMs();
   });
-  $('ovPcs').replaceChildren(...(musicBtn ? [musicBtn] : []), wakeBtn, ...(unpinBtn ? [unpinBtn] : []), ...(pcs.length > 1 ? pcs.map((pc) => {
+  $('ovPcs').replaceChildren(...(musicBtn ? [musicBtn] : []), wakeBtn, ...(pinBtn ? [pinBtn] : []), ...(pcs.length > 1 ? pcs.map((pc) => {
     const b = h('button', 'ov-pc' + (pc.active ? ' on' : ''), '🖥️ ' + (pc.name || t('panel.computer')));
     b.addEventListener('click', (e) => { e.stopPropagation(); switchPc(pc); });
     return b;
@@ -1618,6 +1624,7 @@ function clearDotsHold() {
 $('dots').addEventListener('pointerdown', (e) => {
   heldDots = false;
   clearDotsHold();
+  if (KEEP_PAGE) return;
   if (pages.length < 2 || dimmed || document.body.classList.contains('waking')) return;
   if (e.pointerType === 'mouse' && e.button !== 0) return;
   if (e.target.closest('.page-pause')) return;
@@ -1890,7 +1897,7 @@ export function applyDisplay() {
   renderRulesBtn();
   if (PREVIEW || !bridge) return;
   try { bridge.setVolumeKeys && bridge.setVolumeKeys(d.volumeKeys !== false); } catch (_) {}
-  try { bridge.setPinned && bridge.setPinned(d.pin === true && !unpinnedByHand); } catch (_) {}
+  try { bridge.setPinned && bridge.setPinned(pinOverride ?? d.pin === true); } catch (_) {}
   try { bridge.setOrientation && bridge.setOrientation(['portrait', 'auto'].includes(d.orientation) ? d.orientation : 'landscape'); } catch (_) {}
   try { bridge.setHomeScreen && bridge.setHomeScreen(d.homeScreen === true); } catch (_) {}
   applyBrightness(true);
