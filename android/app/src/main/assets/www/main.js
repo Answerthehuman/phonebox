@@ -19,7 +19,8 @@ import './widgets/spectrum.js';
 import './widgets/music.js';
 import './widgets/minecraft.js';
 import { initOnAir } from './widgets/meeting.js';
-import { ambientLabel, cycleAmbient, initAmbient, todLabel, toggleTod } from './ambient.js';
+import { ambientMin, cycleAmbient, initAmbient, todTheme, toggleTod } from './ambient.js';
+import { VIS_LABEL, cycleVis, initVisibility, pageVisible, visMode } from './visibility.js';
 import { USE_FIXED_PAGES, KEEP_PAGE, UPSTREAM_UPDATES, fixedPages } from './pages.js';
 import { SKIN } from './shortcut-skin.js';
 
@@ -1063,7 +1064,7 @@ export function buildLayout() {
   const enabled = (cfg.pages || []).filter((p) => p.enabled !== false && Array.isArray(p.widgets));
   const portrait = isPortrait();
   // The seven fixed pages (pages.js) replace the layout saved in the agent; see USE_FIXED_PAGES there.
-  const next = USE_FIXED_PAGES ? fixedPages(portrait) : (enabled.length ? enabled : FALLBACK_PAGES);
+  const next = (USE_FIXED_PAGES ? fixedPages(portrait) : (enabled.length ? enabled : FALLBACK_PAGES)).filter((pg) => pageVisible(pg.id));   // Minecraft / Meeting only while needed (visibility.js)
   const h12 = hour12();
   // the active language belongs in the key: the widgets render their texts once, when they are created
   const key = JSON.stringify([next, cfg.shortcuts, cfg.display?.showSeconds, cfg.display?.hour12, h12, cfg.display?.appearance, portrait, I18n?.getLang()]);
@@ -1558,52 +1559,59 @@ pager.addEventListener('scroll', onScroll, { passive: true });
 // reopened, so the next settings sync from the computer does not pin the screen again.
 let pinOverride = null;
 const pinLabel = () => ((pinOverride ?? cfg.display?.pin === true) ? 'Unpin screen' : 'Pin screen');   // null: follow the desktop setting; true / false: chosen with the button below
+// the colour of each page's icon in the overview (the Settings app's way of telling rows apart)
+const PAGE_COLORS = { home: '#0a84ff', 'apple-music': '#fa2d48', system: '#30d158', sessions: '#ff9f0a', quotas: '#bf5af2', shortcuts: '#5ac8fa', clock: '#ff6482', minecraft: '#62c554', meeting: '#ff3b30' };
 export function openOverview() {
   haptic();
   const ov = $('overview');
   const tile = (p, i) => {
-    const map = h('div', 'ov-map', p.widgets.map((w) => {
-      const b = h('span', null, WIDGET_ICONS[w.type] || '▫️');
-      b.style.gridArea = `${w.y + 1} / ${w.x + 1} / span ${w.h} / span ${w.w}`;
-      return b;
-    }));
-    const t = h('button', 'ov-tile' + (i === curPage ? ' on' : ''), map, h('div', 'ov-name', h('b', null, `${i + 1}`), ` ${p.icon || ''} ${p.title}`));
-    t.addEventListener('click', (e) => { e.stopPropagation(); haptic(); closeOverview(); goPage(i, true); });
-    return t;
+    const b = h('button', 'ov-tile' + (i === curPage ? ' on' : ''), h('span', 'ov-ico', p.icon || ''), h('span', 'ov-name', p.title), h('span', 'ov-num', String(i + 1)));
+    b.style.setProperty('--c', PAGE_COLORS[p.id] || '#8e8e93');
+    b.addEventListener('click', (e) => { e.stopPropagation(); haptic(); closeOverview(); goPage(i, true); });
+    return b;
   };
   $('ovGrid').replaceChildren(...pages.map(tile));
   renderRulesBtn();
+
+  // settings: grouped rows like the iOS Settings app, label on the left and the current choice on the right
+  const row = (label, get, tap, sub) => {
+    const val = h('span', 'ov-val', get());
+    const b = h('button', 'ov-row', h('span', 'ov-lab', label, sub ? h('small', null, sub) : null), val);
+    b.addEventListener('click', (e) => {
+      e.stopPropagation(); haptic();
+      if (tap() !== false) val.textContent = get();
+    });
+    return b;
+  };
+  const group = (title, rows) => h('div', 'ov-group', h('div', 'ov-gt', title), h('div', 'ov-rows', rows.filter(Boolean)));
+  const awake = () => (wakeMin() === 0 ? 'Always' : wakeMs() === Infinity ? 'Always (charging)' : wakeMin() + ' min');
+  const screen = group('Screen', [
+    row('Stays awake', awake, () => {
+      store.set('wakeMin', WAKE_CHOICES[(WAKE_CHOICES.indexOf(wakeMin()) + 1) % WAKE_CHOICES.length]);
+      if (Date.now() < wakeUntil) wakeUntil = Date.now() + wakeMs();
+    }),
+    row('Ambient screen', () => (ambientMin() ? 'After ' + ambientMin() + ' min' : 'Off'), () => { cycleAmbient(); }),
+    row('Time colours', () => (todTheme() ? 'On' : 'Off'), () => { toggleTod(); }),
+    bridge?.setPinned ? row('Pin screen', () => ((pinOverride ?? cfg.display?.pin === true) ? 'Pinned' : 'Off'), () => {
+      pinOverride = !(pinOverride ?? cfg.display?.pin === true);
+      try { bridge.setPinned(pinOverride); } catch (_) {}   // Android asks once to confirm when pinning
+      closeOverview();
+      toast(pinOverride ? 'Pinning the screen. Confirm on the phone if it asks.' : 'Screen unpinned. Home and Recents work again.', 'ok');
+      return false;
+    }) : null,
+  ]);
+  const optional = group('Optional pages', [
+    row('Minecraft', () => VIS_LABEL[visMode('minecraft')], () => { cycleVis('minecraft'); openOverview(); return false; }, 'Appears when the game starts'),
+    row('Meeting', () => VIS_LABEL[visMode('meeting')], () => { cycleVis('meeting'); openOverview(); return false; }, 'Appears when you are on air'),
+  ]);
   // several paired computers: switch between them here (a USB cable always wins)
   const pcs = pairedPcs();
-  const musicAt = pages.findIndex((p) => p.id === 'apple-music');
-  const musicBtn = musicAt < 0 ? null : h('button', 'ov-pc ov-music' + (musicAt === curPage ? ' on' : ''), '♪ ' + (D.state?.media?.title ? t('w.nowPlaying') : 'Music'));
-  musicBtn?.addEventListener('click', (e) => { e.stopPropagation(); haptic(); closeOverview(); goPage(musicAt, true); });
-  const pinBtn = bridge?.setPinned ? h('button', 'ov-pc ov-pin', pinLabel()) : null;
-  pinBtn?.addEventListener('click', (e) => {
-    e.stopPropagation(); haptic();
-    pinOverride = !(pinOverride ?? cfg.display?.pin === true);
-    try { bridge.setPinned(pinOverride); } catch (_) {}   // Android asks once to confirm when pinning
-    closeOverview();
-    toast(pinOverride ? 'Pinning the screen. Confirm on the phone if it asks.' : 'Screen unpinned. Home and Recents work again.', 'ok');
-  });
-  const wakeBtn = h('button', 'ov-pc ov-wake', wakeLabel());
-  wakeBtn.addEventListener('click', (e) => {
-    e.stopPropagation(); haptic();
-    const next = WAKE_CHOICES[(WAKE_CHOICES.indexOf(wakeMin()) + 1) % WAKE_CHOICES.length];
-    store.set('wakeMin', next);
-    wakeBtn.textContent = wakeLabel();
-    if (Date.now() < wakeUntil) wakeUntil = Date.now() + wakeMs();
-  });
-  const ambBtn = h('button', 'ov-pc ov-amb', ambientLabel());
-  ambBtn.addEventListener('click', (e) => { e.stopPropagation(); haptic(); cycleAmbient(); ambBtn.textContent = ambientLabel(); });
-  const todBtn = h('button', 'ov-pc ov-tod', todLabel());
-  todBtn.addEventListener('click', (e) => { e.stopPropagation(); haptic(); toggleTod(); todBtn.textContent = todLabel(); });
-  $('ovPcs').replaceChildren(...(musicBtn ? [musicBtn] : []), wakeBtn, ambBtn, todBtn, ...(pinBtn ? [pinBtn] : []), ...(pcs.length > 1 ? pcs.map((pc) => {
-    const b = h('button', 'ov-pc' + (pc.active ? ' on' : ''), '🖥️ ' + (pc.name || t('panel.computer')));
+  const computers = pcs.length > 1 ? group('Computers', pcs.map((pc) => {
+    const b = h('button', 'ov-row' + (pc.active ? ' on' : ''), h('span', 'ov-lab', pc.name || t('panel.computer')), h('span', 'ov-val', pc.active ? 'In use' : ''));
     b.addEventListener('click', (e) => { e.stopPropagation(); switchPc(pc); });
     return b;
-  }) : []));
-  $('ovGrid').style.setProperty('--n', Math.min(4, Math.ceil(Math.sqrt(pages.length * 1.6))));
+  })) : null;
+  $('ovPcs').replaceChildren(...[screen, optional, computers].filter(Boolean));
   ov.hidden = false;
 }
 window.openOverview = openOverview;
@@ -2057,6 +2065,7 @@ applyDisplay();
 tick();
 initOnAir();
 initAmbient();
+initVisibility();
 loadWeather();
 setInterval(loadWeather, 15 * 60_000);
 setInterval(() => { if (!nightOn) emit('fast'); }, 250);

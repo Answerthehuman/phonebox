@@ -107,3 +107,35 @@ is quoted).
 
 Not possible from this app: using the phone's camera in meetings (a virtual camera needs a driver on the computer, see the answer in the
 patch notes of the chat: Windows 11's "Use as a connected camera", Iriun or DroidCam do it).
+
+## Patch 5: optional pages, Minecraft rework, meeting icons, tidy overview
+
+1. **Minecraft and Meeting pages stay hidden until needed** (`visibility.js`). In the overview, *Optional pages* has a choice for each:
+   **Auto** (the page appears when the game or your server starts, or when a call is on air, and leaves about 90 s after it ends; you are
+   never pulled off the page you are standing on), **Always**, or **Hidden**. The choice is kept on the phone. The "On air" pill
+   hides too when Meeting is Hidden.
+2. **Minecraft page = Controls + Coordinates only.** Timers, Stronghold and Guide are gone.
+   - *Controls*: hot bar (9 slots, the selected one outlined, item colour and initials plus count), health and food, position,
+     **game mode** buttons (Survival / Creative / Adventure / Spectator), **Go Home** (types `/trigger home`), the keys and
+     Day / Night / Clear sky, what the computer is playing (tap for the Music page), and a **Start server** button that runs
+     `start.bat` in `C:\Users\anshu\MinecraftServer\snowblack` and the reader below.
+   - *Coordinates*: your live position and last death with Convert / Save, the Overworld <-> Nether converter, saved places.
+3. **The live part needs the reader**, `tools/mc-bridge.py`: it asks your local server over RCON for the online player's
+   position, hot bar, selected slot, game mode, health, food and last death (read-only `data get entity ...`) and hands it to the
+   agent (`/api/push/mc`). One-time setup: `python tools/mc-bridge.py --enable-rcon`, then restart the server (a backup,
+   `server.properties.before-phonebox`, is kept). Without it the page still works: keys, game mode, Go Home, converter and notebook
+   do not need the server. Tested against a stand-in RCON server (with a 6 KB split reply and tricky item data), not yet against
+   your real server.
+4. **Game mode and Go Home type chat commands into the game window** (open chat with T, type, Enter), like Day / Night. Game mode needs
+   operator rights (you are op on the server); `/trigger home` does not. The game has to be in front on the computer.
+5. **Not possible: the track Minecraft itself is playing.** The game's music is played inside the game and is not exposed to the server,
+   a log or Windows' media controls. The page shows what the computer's media player is playing instead.
+6. **Meeting buttons are icons**, drawn in each app's style: Google Meet (round grey buttons), Microsoft Teams (rounded purple buttons,
+   red Leave), Discord (round dark buttons, blurple Open). The camera button is struck through while no app has the camera open (real
+   state); the microphone has no state because Windows reports a muted call as "in use" too. The icons are drawn here as simple line
+   glyphs; the apps' own icon files are not used.
+7. **Overview redesigned** (`extras.css`, `openOverview()` in `main.js`): page tiles with a coloured icon, name and number on the left,
+   and settings as grouped rows like the iOS Settings app on the right (Screen: stays awake, ambient screen, time colours, pin;
+   Optional pages; Computers). The old mini-maps and row of pills are gone.
+8. `tools/install-shortcuts.py` now also installs the game-mode, Go Home and server shortcuts (`--server-dir` if your server folder
+   moves). Already run on this computer.

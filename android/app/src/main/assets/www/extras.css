@@ -146,3 +146,105 @@
 }
 body.tod-on #todwash { opacity: var(--t-str, 1); }
 body.tod-on #pager { z-index: 1; }
+
+/* ================= Patch 5: the overview, pages on the left and settings like the iOS Settings app on the right ================= */
+#overview { flex-direction: row; gap: 18px; padding: 14px 16px 12px; background: #000; align-items: stretch; }
+.ov-pages { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.ov-side { flex: 0 0 min(300px, 40vw); min-width: 0; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; scrollbar-width: none; }
+.ov-side::-webkit-scrollbar { display: none; }
+.ov-title { font-size: 22px; font-weight: 700; letter-spacing: -.025em; padding-left: 2px; flex: 0 0 auto; }
+#ovGrid { flex: 1 1 0; min-height: 0; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; grid-auto-rows: minmax(72px, 1fr) !important; gap: 10px !important; align-content: stretch !important; }
+.ov-tile { position: relative; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 6px; padding: 11px 12px 10px; background: #1a1a1c; border: 0; border-radius: 18px; overflow: hidden; }
+.ov-ico { width: 34px; height: 34px; flex: 0 0 34px; border-radius: 10px; display: grid; place-items: center; font-size: 19px; line-height: 1; background: color-mix(in srgb, var(--c, #8e8e93) 32%, #1a1a1c); }
+.ov-tile .ov-name { order: 0; font-size: 14px; font-weight: 600; max-width: 100%; }
+.ov-num { position: absolute; top: 10px; right: 13px; font-size: 12px; font-weight: 600; color: var(--dim); font-variant-numeric: tabular-nums; }
+.ov-tile.on { background: #232326; box-shadow: inset 0 0 0 1.5px var(--apple-red); }
+.ov-tile.on .ov-num { color: var(--apple-red); }
+.ov-group { display: flex; flex-direction: column; gap: 6px; flex: 0 0 auto; }
+.ov-gt { font-size: 11px; font-weight: 600; color: var(--dim); text-transform: uppercase; letter-spacing: .05em; padding-left: 6px; }
+.ov-rows { background: #1a1a1c; border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; }
+.ov-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; min-height: 40px; padding: 8px 12px; background: none; border: 0; border-radius: 0; text-align: left; color: var(--text); font-size: 14px; font-weight: 500; }
+.ov-row + .ov-row { border-top: .5px solid rgba(255, 255, 255, .09); }
+.ov-row:active { background: rgba(255, 255, 255, .06); }
+.ov-lab small { display: block; margin-top: 1px; font-size: 10.5px; font-weight: 400; color: var(--dim); }
+.ov-val { flex: 0 0 auto; color: var(--muted); font-size: 13.5px; font-weight: 500; white-space: nowrap; }
+.ov-row.on .ov-val { color: #62c554; }
+@media (max-aspect-ratio: 1/1) {
+  #overview { flex-direction: column; overflow-y: auto; gap: 14px; }
+  .ov-pages { flex: 0 0 auto; }
+  .ov-side { flex: 0 0 auto; overflow: visible; }
+  #ovGrid { grid-auto-rows: 88px !important; }
+}
+
+/* ================= Patch 5: meeting buttons drawn per app, with icons ================= */
+.mt-chip { display: flex; align-items: center; gap: 7px; }
+.mt-mark { width: 18px; height: 18px; display: inline-grid; flex: 0 0 18px; }
+.mt-mark svg { width: 100%; height: 100%; }
+.mt-grid { display: flex; flex-wrap: wrap; gap: 8px 14px; justify-content: center; align-content: center; flex: 1 1 auto; min-height: 0; }
+.mt-key { flex-direction: column; justify-content: flex-start; width: auto; min-width: 74px; min-height: 0; padding: 0; gap: 6px; background: none; border: 0; border-radius: 0; }
+.mt-key.mic, .mt-key.cam, .mt-key.danger { background: none; border: 0; }
+.mt-ico { display: grid; place-items: center; width: 60px; height: 60px; color: #fff; transition: transform .14s, background .2s; }
+.mt-ico svg { width: 27px; height: 27px; }
+.mt-k-label { font-size: 11.5px; font-weight: 500; color: var(--muted); }
+.mt-key:active .mt-ico { transform: scale(.9); }
+.mt-key.ok .mt-ico { box-shadow: 0 0 0 2px rgba(50, 215, 75, .7); }
+.mt-key.err .mt-ico { box-shadow: 0 0 0 2px rgba(255, 69, 58, .8); }
+.mt-key.busy { opacity: .7; }
+.mt-key:disabled { opacity: .35; }
+/* Google Meet: round grey buttons, red when the thing is off */
+[data-look="meet"] .mt-ico { border-radius: 50%; background: #3c4043; }
+[data-look="meet"] .mt-key.off .mt-ico { background: #ea4335; }
+[data-look="meet"] .mt-chip.on { background: #e8eaed; color: #202124; }
+/* Microsoft Teams: rounded purple buttons, a red Leave */
+[data-look="teams"] .mt-ico { width: 68px; height: 50px; border-radius: 12px; background: #34355f; }
+[data-look="teams"] .mt-key.danger .mt-ico { background: #c4314b; }
+[data-look="teams"] .mt-key.off .mt-ico { background: #4a3a52; }
+[data-look="teams"] .mt-chip.on { background: #5b5fc7; color: #fff; }
+/* Discord: round dark buttons with a hairline, blurple for opening the app */
+[data-look="discord"] .mt-ico { border-radius: 50%; background: #2b2d31; box-shadow: inset 0 0 0 1px #3f4147; }
+[data-look="discord"] .mt-key.open .mt-ico { background: #5865f2; box-shadow: none; }
+[data-look="discord"] .mt-chip.on { background: #5865f2; color: #fff; }
+[data-look="meet"] .mt-key.open .mt-ico, [data-look="teams"] .mt-key.open .mt-ico { background: rgba(255, 255, 255, .1); }
+
+/* ================= Patch 5: Minecraft controls (hot bar, vitals, modes, Go Home) ================= */
+.mc-pane.mc-play { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 12px; align-content: start; }
+.mc-pane.mc-play[hidden] { display: none; }
+.mc-hot { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 4px; }
+.mc-slot { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
+.mc-sq { position: relative; width: 100%; aspect-ratio: 1; border-radius: 9px; background: #1a1a1c; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .09); display: grid; place-items: center; overflow: hidden; }
+.mc-sw { position: absolute; inset: 15%; border-radius: 7px; display: grid; place-items: center; font-size: 11px; font-weight: 700; color: rgba(0, 0, 0, .7); }
+.mc-slot.empty .mc-sw { display: none; }
+.mc-cnt { position: absolute; right: 3px; bottom: 1px; font-style: normal; font-size: 10px; font-weight: 700; color: #fff; text-shadow: 0 1px 2px #000; }
+.mc-nm { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; width: 100%; height: 21px; font-size: 8.5px; line-height: 1.2; color: var(--muted); text-align: center; }
+.mc-slot.sel .mc-sq { box-shadow: 0 0 0 2px #fff; }
+.mc-vitals { display: flex; align-items: center; gap: 12px; font-size: 12px; min-height: 16px; }
+.mc-hp { color: #ff453a; letter-spacing: 1px; }
+.mc-food { color: #c98b4e; letter-spacing: 1px; }
+.mc-pos { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
+.mc-why { font-size: 11.5px; color: #ff9f0a; background: rgba(255, 159, 10, .1); border-radius: 10px; padding: 7px 10px; }
+.mc-why[hidden], .mc-setup[hidden] { display: none; }
+.mc-setup { font-size: 11.5px; color: var(--muted); line-height: 1.5; background: var(--card); border-radius: 12px; padding: 9px 11px; display: flex; flex-direction: column; gap: 4px; }
+.mc-setup b { color: var(--text); }
+.mc-modes { display: grid; grid-template-columns: repeat(4, 1fr); background: var(--card); border-radius: 12px; padding: 3px; }
+.mc-mode { padding: 8px 2px; border-radius: 9px; font-size: 12px; font-weight: 600; color: var(--muted); transition: background .2s, color .2s; }
+.mc-mode.on { background: #fff; color: #000; }
+.mc-mode:disabled { opacity: .35; }
+.mc-btn.home { width: 100%; padding: 12px; font-size: 15px; border-radius: 14px; }
+.mc-play .mc-keys { grid-template-columns: repeat(5, 1fr); gap: 5px; }
+.mc-play .mc-key { min-height: 44px; padding: 5px 2px; border-radius: 12px; }
+.mc-play .mc-key .mc-k-label { font-size: 11px; line-height: 1.15; text-align: center; }
+.mc-play .mc-key small { font-size: 9.5px; }
+.mc-play .mc-cmds { grid-template-columns: repeat(3, 1fr); }
+.mc-playing { display: flex; align-items: center; gap: 8px; background: var(--card); border-radius: 12px; padding: 9px 12px; font-size: 12.5px; text-align: left; color: var(--text); min-width: 0; }
+.mc-playing i { font-style: normal; color: var(--apple-red); }
+.mc-playing span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.mc-playing.idle { color: var(--dim); }
+.mc-chip.srv { margin-left: auto; }
+.mc-chip.srv.on { background: rgba(98, 197, 84, .2); color: #62c554; }
+.mc-chip:disabled { opacity: .4; }
+.mc-here { display: flex; flex-direction: column; gap: 6px; }
+.mc-here-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; background: var(--card); border-radius: 12px; padding: 7px 10px; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.mc-here-row b { font-weight: 600; margin-right: 4px; }
+.mc-here-btns { display: flex; gap: 6px; }
+.mc-here-btns .mc-chip { padding: 5px 10px; font-size: 12px; }
+#ovPcs { margin: 0; width: 100%; display: flex; flex-direction: column; flex-wrap: nowrap; justify-content: flex-start; align-items: stretch; gap: 12px; }

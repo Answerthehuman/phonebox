@@ -1,26 +1,51 @@
-// Meeting controls and the "On air" banner (Patch 4).
+// Meeting controls and the "On air" banner.
 //  - The PC agent already knows when an app is using the microphone or the camera (D.state.privacy: mic, camera,
 //    micApps, cameraApps). While that is true a small "On air" pill shows on every page; tapping it opens this page.
 //    Nothing switches page by itself.
-//  - The buttons send the meeting app's own keyboard shortcuts through the agent's shortcuts (ids "pb-mt-*", installed
-//    by tools/install-shortcuts.py). Keys go to the window in front on the PC, so the call window must be in front, or
-//    the app must have the shortcut set as a global one (Discord: Settings > Keybinds). "Bring to front" opens the app.
+//  - Each service gets its own buttons, drawn the way that app draws them (Meet: round grey buttons, Teams: rounded
+//    purple buttons and a red Leave, Discord: round dark buttons) with icons instead of text. They send the app's own
+//    keyboard shortcuts through the agent's shortcuts (ids "pb-mt-*", installed by tools/install-shortcuts.py). The keys go
+//    to the window in front on the PC, so the call window must be in front, or the app must have the shortcut set as a
+//    global one (Discord: Settings > Keybinds). "Open" brings the app up.
+//  - The icons are drawn here as simple line glyphs in the style of each app; the apps' own icon files are not used.
 import { D, api, cfg, curPage, goPage, h, haptic, pages, store, toast } from '../main.js';
 import { W } from '../registry.js';
+import { ensurePage, visMode } from '../visibility.js';
 
-// what each service offers: [id suffix, label, hint, kind]  kind: 'mic' | 'cam' | 'danger' | undefined
+const svg = (inner, extra = '') => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" ${extra}>${inner}</svg>`;
+const SLASH = '<path d="M4 4l16 16" stroke-width="2.2"/>';
+const ICON = {
+  mic: svg('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3"/>'),
+  cam: svg('<rect x="3" y="6.5" width="12" height="11" rx="2.5"/><path d="M15 10.5l6-3.2v9.4l-6-3.2"/>'),
+  camOff: svg('<rect x="3" y="6.5" width="12" height="11" rx="2.5"/><path d="M15 10.5l6-3.2v9.4l-6-3.2"/>' + SLASH),
+  share: svg('<rect x="3" y="4" width="18" height="12.5" rx="2.2"/><path d="M8.5 20.5h7M12 16.5v4M12 13V7.5M9.3 10l2.7-2.7 2.7 2.7"/>'),
+  hand: svg('<path d="M8 13.5V6.5a1.5 1.5 0 0 1 3 0V11M11 11V4.5a1.5 1.5 0 0 1 3 0V11M14 11V6.5a1.5 1.5 0 0 1 3 0v7c0 4.2-2.6 6.5-6 6.5-2.5 0-4.2-1.1-5.5-3.2L3.8 14a1.5 1.5 0 0 1 2.5-1.6L8 14.5"/>'),
+  chat: svg('<path d="M4 5.5h16v11H9.5L5 20.5v-4H4z"/><path d="M8 10h8M8 13h5"/>'),
+  cc: svg('<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10.2 10.4a2.1 2.1 0 1 0 0 3.2M16.6 10.4a2.1 2.1 0 1 0 0 3.2"/>'),
+  leave: svg('<path d="M2.8 14.3c5.4-5 12.6-5 18.4 0l-2.2 2.8-3.4-1.7v-2.6a9.5 9.5 0 0 0-4.8 0v2.6L5 17.1z" fill="currentColor"/>'),
+  deaf: svg('<path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4.2" height="6.5" rx="1.6"/><rect x="16.8" y="14" width="4.2" height="6.5" rx="1.6"/>'),
+  open: svg('<path d="M14 4h6v6M20 4l-8.5 8.5M18 14v4.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10"/>'),
+};
+// the little mark on each service's tab
+const MARK = {
+  meet: '<svg viewBox="0 0 24 24"><rect x="2.5" y="6" width="12" height="12" rx="2.4" fill="#00ac47"/><path d="M14.5 10.2l6-3.4v10.4l-6-3.4z" fill="#ffba00"/><path d="M2.5 15.6v-3.2h5v3.2z" fill="#ea4335" opacity=".0"/><rect x="2.5" y="6" width="5" height="4" rx="2" fill="#2684fc"/></svg>',
+  teams: '<svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5" fill="#5b5fc7"/><path d="M7 8.4h10M12 8.4V17" stroke="#fff" stroke-width="2.4" stroke-linecap="round" fill="none"/></svg>',
+  discord: '<svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="6" fill="#5865f2"/><ellipse cx="8.6" cy="12" rx="1.6" ry="2" fill="#fff"/><ellipse cx="15.4" cy="12" rx="1.6" ry="2" fill="#fff"/><path d="M7 16.4c3 1.6 7 1.6 10 0" stroke="#fff" stroke-width="1.6" stroke-linecap="round" fill="none"/></svg>',
+};
+
+// what each service offers: [id suffix, label, icon, kind]   kind: mic | cam | danger | open (drawn differently)
 const SERVICES = {
   meet: {
-    name: 'Google Meet', note: 'Meet answers these keys only while its browser tab is in front.',
-    keys: [['mic', 'Mute / unmute', 'Ctrl + D', 'mic'], ['cam', 'Camera', 'Ctrl + E', 'cam'], ['hand', 'Raise hand', 'Ctrl + Alt + H'], ['chat', 'Chat', 'Ctrl + Alt + C'], ['cc', 'Captions', 'C']],
+    name: 'Google Meet', look: 'meet', note: 'Meet answers these keys only while its tab is in front.',
+    keys: [['mic', 'Microphone', 'mic', 'mic'], ['cam', 'Camera', 'cam', 'cam'], ['hand', 'Raise hand', 'hand'], ['chat', 'Chat', 'chat'], ['cc', 'Captions', 'cc']],
   },
   teams: {
-    name: 'Microsoft Teams', note: '', front: true,
-    keys: [['mic', 'Mute / unmute', 'Ctrl + Shift + M', 'mic'], ['cam', 'Camera', 'Ctrl + Shift + O', 'cam'], ['share', 'Share screen', 'Ctrl + Shift + E'], ['hand', 'Raise hand', 'Ctrl + Shift + K'], ['leave', 'Leave call', 'Ctrl + Shift + H', 'danger']],
+    name: 'Microsoft Teams', look: 'teams', note: '', front: true,
+    keys: [['mic', 'Mute', 'mic', 'mic'], ['cam', 'Camera', 'cam', 'cam'], ['share', 'Share', 'share'], ['hand', 'Raise hand', 'hand'], ['leave', 'Leave', 'leave', 'danger']],
   },
   discord: {
-    name: 'Discord', note: 'To mute while a game is in front, set these two as keybinds in Discord (Settings > Keybinds).', front: true,
-    keys: [['mic', 'Mute / unmute', 'Ctrl + Shift + M', 'mic'], ['deaf', 'Deafen', 'Ctrl + Shift + D']],
+    name: 'Discord', look: 'discord', note: 'To mute while a game is in front, set these two as keybinds in Discord (Settings > Keybinds).', front: true,
+    keys: [['mic', 'Mute', 'mic', 'mic'], ['deaf', 'Deafen', 'deaf']],
   },
 };
 const ORDER = ['meet', 'teams', 'discord'];
@@ -48,8 +73,14 @@ W.meeting = {
     box.append(badge, chips, grid, note, phoneCam);
 
     let svc = store.get('mt-svc', 'meet');
-    let liveSince = 0;
-    const chipBtns = ORDER.map((k) => { const b = h('button', 'mt-chip', SERVICES[k].name); b.type = 'button'; b.dataset.k = k; b.addEventListener('click', () => { haptic(); svc = k; store.set('mt-svc', k); build(); }); chips.append(b); return b; });
+    let liveSince = 0, camOn = null;
+    const chipBtns = ORDER.map((k) => {
+      const b = h('button', 'mt-chip');
+      b.type = 'button'; b.dataset.k = k;
+      b.innerHTML = `<i class="mt-mark">${MARK[SERVICES[k].look]}</i>${SERVICES[k].name}`;
+      b.addEventListener('click', () => { haptic(); svc = k; store.set('mt-svc', k); box.dataset.pinned = '1'; build(); });
+      chips.append(b); return b;
+    });
 
     const press = async (btn, id) => {
       haptic(); btn.classList.add('busy');
@@ -62,23 +93,37 @@ W.meeting = {
     function build() {
       chipBtns.forEach((b) => b.classList.toggle('on', b.dataset.k === svc));
       const s = SERVICES[svc], list = [...s.keys];
-      if (s.front) list.push(['front', 'Bring to front', 'open the app']);
-      grid.replaceChildren(...list.map(([suffix, label, hint, kind]) => {
+      if (s.front) list.push(['front', 'Open app', 'open', 'open']);
+      box.dataset.look = s.look;
+      grid.replaceChildren(...list.map(([suffix, label, icon, kind]) => {
         const id = `pb-mt-${svc}-${suffix}`;
-        const b = h('button', 'mt-key ' + (kind || ''), h('span', 'mt-k-label', label), h('small', null, hint));
-        b.type = 'button'; b.dataset.id = id; b.disabled = !have(id);
+        const b = h('button', 'mt-key ' + (kind || ''));
+        b.type = 'button'; b.dataset.id = id; b.dataset.icon = icon; b.disabled = !have(id);
+        b.innerHTML = `<span class="mt-ico">${ICON[icon]}</span><span class="mt-k-label">${label}</span>`;
+        b.setAttribute('aria-label', label);
         b.addEventListener('click', () => press(b, id));
         return b;
       }));
+      paintCam();
       const missing = [...grid.children].some((b) => b.disabled);
       note.textContent = missing ? 'Some keys are not installed on the PC yet: run tools/install-shortcuts.py on the laptop.' : s.note;
       note.classList.toggle('warn', missing);
+    }
+    // the camera button shows the real state: struck through while no app has the camera open
+    function paintCam() {
+      const b = grid.querySelector('.mt-key.cam .mt-ico');
+      if (!b) return;
+      const want = camOn === false ? 'camOff' : 'cam';
+      if (b.parentElement.dataset.icon !== want) { b.innerHTML = ICON[want]; b.parentElement.dataset.icon = want; }
+      b.parentElement.classList.toggle('off', camOn === false);
     }
     build();
 
     const paint = () => {
       const live = liveService(D.state?.privacy);
       badge.classList.toggle('live', !!live);
+      const cam = live ? live.cam : null;
+      if (cam !== camOn) { camOn = cam; paintCam(); }
       if (live) {
         if (!liveSince) liveSince = Date.now();
         const who = live.service ? SERVICES[live.service].name : live.names.join(', ') || 'an app';
@@ -91,7 +136,6 @@ W.meeting = {
         badgeText.replaceChildren(h('b', null, 'Not in a call'), h('small', null, 'This turns red when an app uses the microphone or camera.'));
       }
     };
-    chips.addEventListener('click', () => { box.dataset.pinned = '1'; });   // a manual choice sticks until the page is rebuilt
     paint();
     return { update() { paint(); if (grid.querySelector('button:disabled')) build(); } };
   },
@@ -105,12 +149,14 @@ export function initOnAir() {
   document.body.append(pill);
   pill.addEventListener('click', () => {
     haptic();
-    const at = pages.findIndex((p) => p.id === 'meeting');
+    const find = () => pages.findIndex((p) => p.id === 'meeting');
+    if (find() < 0) ensurePage('meeting');
+    const at = find();
     if (at >= 0) goPage(at);
   });
   let last = '';
   const check = () => {
-    const live = liveService(D.state?.privacy);
+    const live = visMode('meeting') === 'hide' ? null : liveService(D.state?.privacy);   // "Hidden" in the overview also hides the pill
     const onPage = pages[curPage]?.id === 'meeting';
     const text = live ? `On air${live.service ? '  ·  ' + SERVICES[live.service].name : ''}` : '';
     const sig = text + '|' + onPage;
