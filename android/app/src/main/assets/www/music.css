@@ -24,7 +24,20 @@
 .ms-bg { display: none; }
 .ms-bg img { width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 1s; filter: blur(46px) saturate(1.9) brightness(.62); transform: scale(1.15); }
 .ms-bg img.on { opacity: 1; }
-.ms-veil { position: absolute; inset: 0; z-index: -1; background: linear-gradient(180deg, rgba(var(--ambient), .30) 0, rgba(var(--ambient), .10) 55%, rgba(var(--ambient), .03) 100%); transition: background 1s; }
+/* the backdrop is built from the song's own colours (coverPalette in music.js): two layers cross-fade between songs and
+   drift slowly while it plays. Only opacity and transform change, so the graphics chip does all of it. */
+.ms-veil { position: absolute; inset: 0; z-index: -1; overflow: hidden; background: #0b0b0c; }
+.ms-g { position: absolute; inset: -18%; opacity: 0; transition: opacity 1.6s ease; will-change: opacity, transform;
+  background:
+    radial-gradient(52% 50% at 16% 14%, rgba(var(--g1, 96, 98, 122), .82), transparent 72%),
+    radial-gradient(50% 54% at 88% 84%, rgba(var(--g2, 52, 54, 76), .7), transparent 72%),
+    radial-gradient(60% 46% at 82% 8%, rgba(var(--g3, 40, 42, 56), .42), transparent 72%),
+    radial-gradient(70% 40% at 20% 100%, rgba(var(--g1, 96, 98, 122), .26), transparent 75%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0) 35%, rgba(0, 0, 0, .5) 100%); }
+.ms-g.on { opacity: 1; }
+.playing .ms-g.on { animation: ms-drift 42s ease-in-out infinite alternate; }
+.ms-off .ms-g.on { animation: none; }
+@keyframes ms-drift { from { transform: translate3d(-3.5%, -2.5%, 0) scale(1); } to { transform: translate3d(3.5%, 2.5%, 0) scale(1.1); } }
 .ms-glow { display: none; }
 
 /* ---- the record */
@@ -77,7 +90,7 @@
 .ms-note { white-space: pre-line; line-height: 1.5; position: absolute; inset: 0; display: grid; place-items: center; font-size: clamp(13px, 5cqh, 19px); font-weight: 600; color: rgba(255, 255, 255, .45); text-align: center; }
 
 /* ---- controls */
-.ms-dock { position: absolute; left: var(--dl); right: var(--dr); bottom: var(--db); display: grid; grid-template-columns: 1fr auto 1fr; grid-template-areas: "prog prog prog" "ctl ctl ctl" "lyr . vol"; row-gap: 1.6cqh; align-items: center; }
+.ms-dock { position: absolute; left: var(--dl); right: var(--dr); bottom: var(--db); display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: "prog prog prog" "ctl ctl ctl" "lyr . vol"; row-gap: 1.6cqh; align-items: center; }
 .ms-prog { grid-area: prog; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 2cqw; font-size: clamp(10px, 3.6cqh, 13px); font-weight: 500; color: rgba(255, 255, 255, .55); font-variant-numeric: tabular-nums; }
 .ms-bar2 { position: relative; height: 24px; display: flex; align-items: center; }
 .ms-bar2::before { content: ""; position: absolute; left: 0; right: 0; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, .2); }
@@ -91,11 +104,15 @@
 .ms-btn.play svg { width: 70%; height: 70%; }
 .i-pause, .playing .i-play { display: none; }
 .playing .i-pause { display: block; }
-.ms-tools { grid-area: lyr; justify-self: start; display: flex; gap: 8px; }
-.ms-ico { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; color: #fff; background: rgba(255, 255, 255, .12); transition: background .2s, color .2s, transform .16s; }
+.ms-tools { grid-area: lyr; justify-self: start; display: flex; gap: 6px; }
+.ms-ico { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; color: #fff; background: rgba(255, 255, 255, .12); transition: background .2s, color .2s, transform .16s; }
 .ms-ico svg { width: 23px; height: 23px; }
 .ms-ico:active { transform: scale(.92); }
 .ms-ico.on { background: #fff; color: #000; }
+.ms-ico:disabled { opacity: .35; }
+/* repeat: lit when on; the "1" shows only for repeat-one */
+.ms-rep .one { opacity: 0; }
+.ms-rep.one .one { opacity: 1; }
 .ms-vol { grid-area: vol; justify-self: end; width: min(100%, 150px); display: flex; align-items: center; gap: 6px; color: rgba(255, 255, 255, .6); }
 .ms-vol i { display: grid; flex: 0 0 auto; }
 .ms-vol svg { width: 17px; height: 17px; fill: currentColor; }

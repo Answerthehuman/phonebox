@@ -5,6 +5,9 @@ export const USE_FIXED_PAGES = true;
 // The page you are on stays until you leave it: no idle return to Home, no rules or webhooks switching pages, no pause
 // button. The one automatic move is to the Sessions page when Claude Code asks for permission (main.js).
 export const KEEP_PAGE = true;
+// This panel is patched by hand: it no longer shows the original project's "update available" notice, which would
+// offer the stock app and undo the changes. (The laptop agent's own check is switched off separately, see PATCHES.md.)
+export const UPSTREAM_UPDATES = false;
 
 export function fixedPages(portrait) {
   const page = (id, title, icon, widgets) => ({ id, title, icon, enabled: true, widgets: widgets.map((w, i) => ({ id: `${id}-${i}`, options: {}, ...w })) });
@@ -37,5 +40,8 @@ export function fixedPages(portrait) {
       { type: 'forecast', x: 0, y: 4, w: 6, h: 2, options: { mode: 'daily', days: 3 } },
       { type: 'calendar', x: 6, y: 0, w: 6, h: 6 },
     ]),
+    // Patch 4: a side panel for Minecraft, and the meeting controls
+    page('minecraft', 'Minecraft', '⛏️', [{ type: 'minecraft', x: 0, y: 0, w: 12, h: 6 }]),
+    page('meeting', 'Meeting', '🎙️', [{ type: 'meeting', x: 0, y: 0, w: 12, h: 6 }]),
   ];
 }

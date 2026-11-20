@@ -38,8 +38,8 @@ body::before { background: none !important; }   /* no background bloom */
 .t-val small { color: var(--muted); font-weight: 400; }
 
 /* ---- clock: a thin, large numeral on plain black */
-.clock { font-weight: 300; letter-spacing: -.05em; }
-.clock .colon { opacity: .4; animation: none; }
+.clock { font-weight: 700; letter-spacing: -.045em; }
+.clock .colon { opacity: .5; animation: none; }
 .date { color: var(--muted); font-weight: 400; }
 
 /* ---- shortcuts: quiet tiles, tinted by their colour but never saturated */

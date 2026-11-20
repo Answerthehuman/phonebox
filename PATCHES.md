@@ -70,3 +70,40 @@ The jump between the record view and the lyrics / queue view stuttered. Causes a
 Measured on the phone with `dumpsys gfxinfo` while switching views and the record spins: janky frames 20.7 % -> 5.7 %,
 95th percentile frame time 105 ms -> 40 ms (one earlier before-run did not land on the Music page, so only the valid one
 is quoted).
+
+## Patch 4: Minecraft page, meeting controls, ambient screen, repeat, song colours, no upstream updates
+
+1. **Bold home clock** (`apple.css`): the big time on Home and the Clock page is now weight 700.
+2. **Updates from the original project are switched off.** The "0.9.24 available" notice came from the *computer agent*,
+   which checks `ersinkoc/phonebox` for releases and, with "install new releases automatically" on, had been trying to
+   install the stock app onto the phone over USB (the swap fails because the signing key differs, which is why it
+   "timed out"; it would have undone these changes had the key matched). Now:
+   - the phone panel no longer shows the notice (`UPSTREAM_UPDATES = false` in `pages.js`);
+   - the agent's setting `updates.auto` is `false` and `updates.repo` points at this repository (`tools/install-shortcuts.py --no-updates`),
+     so it checks nothing upstream. The agent on the laptop is already 0.9.24; the phone app stays 0.9.19 plus these patches.
+   - Not changed: the first-time pairing QR still opens a page hosted by the original project (`ersinkoc.github.io/phonebox/pair`).
+3. **Music: repeat button** beside mic / queue / like. Off -> repeat all -> repeat one, through the computer's media session
+   (works for Spotify's desktop app). Lit when on; the "1" shows for repeat-one.
+4. **Music: song-coloured backdrop.** `coverPalette()` reads the cover and picks its strongest hue, a second hue and the overall
+   tone; two layers cross-fade between songs and drift slowly while it plays (opacity and transform only). Grey covers get a
+   neutral blue-grey.
+5. **Minecraft page (page 8)**, `widgets/minecraft.js`: status of the game on the PC (running, memory, CPU/GPU/RAM) and five tabs:
+   *Controls* (screenshot, HUD, debug screen, camera, full screen, chat, inventory, menu, copy position, chunk borders, and three
+   chat commands: day / night / clear weather), *Coordinates* (Overworld <-> Nether converter that also reads the line F3 + C copies,
+   saved places), *Stronghold* (two eye-of-ender throws -> position), *Timers* (furnace / brewing countdowns that buzz, and a day-night
+   clock), *Guide* (ore depths, Nether / End facts, F3 keys). Everything except Controls works on the phone alone.
+6. **Meeting page (page 9) and "On air" pill**, `widgets/meeting.js`: the agent reports which app uses the microphone or camera;
+   while that is true a red "On air" pill shows on every page (tap it to open the Meeting page; nothing switches by itself). The page
+   sends each service's own keyboard shortcuts: Google Meet (mute, camera, hand, chat, captions), Microsoft Teams (mute, camera, share,
+   hand, leave, open), Discord (mute, deafen, open). Keys go to the window in front on the computer.
+7. **Ambient screen** (`ambient.js`, overview button "Ambient screen after N min", default 10): after the panel is left alone, a slowly
+   moving gradient in the colours of the hour with a big clock covers the page; a tap brings the page back unchanged. Hours: early light,
+   morning (bright), afternoon (clear), evening (calm, dimmer), night (deep, dimmest). It stays away during a call, a prompt, the night
+   screen, and music playing on the Music page.
+8. **Time colours** (overview button, **off by default**): the same palette as a faint wash behind every page.
+9. **Shortcuts for the new pages** live in the agent's settings with ids starting `pb-` (the general Shortcuts page hides them). Add or
+   refresh them with `python tools/install-shortcuts.py` (`--remove` takes them out; a copy of the old settings goes to
+   `%APPDATA%/PhoneBox/config.before-patch4.json`).
+
+Not possible from this app: using the phone's camera in meetings (a virtual camera needs a driver on the computer, see the answer in the
+patch notes of the chat: Windows 11's "Use as a connected camera", Iriun or DroidCam do it).

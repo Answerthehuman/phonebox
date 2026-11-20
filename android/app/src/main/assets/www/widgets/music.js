@@ -6,7 +6,7 @@
 // length are looked up there. Nothing else leaves the phone. Radio streams are never looked up.
 import { toast, API, D, api, averageColor, emit, fmtTime, h, haptic, media, safeFetch, setArtColor, setMediaState, setVolDragging, store, t, volDragging } from '../main.js';
 import { W } from '../registry.js';
-import { integrationCommand, invalidateDeckState } from './controls.js';
+import { deckCommand, deckState, integrationCommand, invalidateDeckState } from './controls.js';
 
 // ---------------------------------------------------------------- lyrics
 const LRC_HOST = 'https://lrclib.net/api';
@@ -89,6 +89,54 @@ export function loadLyrics(m) {
   return p;
 }
 
+
+// ---------------------------------------------------------------- colours from the cover
+// Three colours for the backdrop: the strongest hue of the cover, a second hue that is not its neighbour, and the
+// cover's overall tone. Grey covers get a neutral blue-grey so the page never goes flat.
+const NEUTRAL = { g1: '96, 98, 122', g2: '52, 54, 76', g3: '40, 42, 56' };
+const toCss = (c) => c.map((v) => Math.round(Math.max(0, Math.min(255, v)))).join(', ');
+const boost = (c, peak) => { const k = peak / (Math.max(...c) || 1); return c.map((v) => v * k); };
+function rotateHue(c, deg) {
+  const [r, g, b] = c.map((v) => v / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+  let hh = 0;
+  if (d) hh = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  hh = ((hh * 60 + deg) % 360 + 360) % 360;
+  const l = (mx + mn) / 2, sat = d ? d / (1 - Math.abs(2 * l - 1)) : 0, k = (1 - Math.abs(2 * l - 1)) * sat, x = k * (1 - Math.abs(((hh / 60) % 2) - 1)), m = l - k / 2;
+  const [r1, g1, b1] = hh < 60 ? [k, x, 0] : hh < 120 ? [x, k, 0] : hh < 180 ? [0, k, x] : hh < 240 ? [0, x, k] : hh < 300 ? [x, 0, k] : [k, 0, x];
+  return [(r1 + m) * 255, (g1 + m) * 255, (b1 + m) * 255];
+}
+export function coverPalette(img) {
+  try {
+    const N = 28, cv = document.createElement('canvas');
+    cv.width = cv.height = N;
+    const cx = cv.getContext('2d', { willReadFrequently: true });
+    cx.drawImage(img, 0, 0, N, N);
+    const d = cx.getImageData(0, 0, N, N).data;
+    const bins = Array.from({ length: 12 }, () => ({ w: 0, c: [0, 0, 0] }));
+    const all = [0, 0, 0];
+    for (let i = 0; i < d.length; i += 4) {
+      const r = d[i], g = d[i + 1], b = d[i + 2], mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+      all[0] += r; all[1] += g; all[2] += b;
+      const v = mx / 255, sat = mx ? (mx - mn) / mx : 0;
+      if (v < 0.18 || sat < 0.22) continue;
+      const dd = mx - mn;
+      let hh = mx === r ? ((g - b) / dd) % 6 : mx === g ? (b - r) / dd + 2 : (r - g) / dd + 4;
+      hh = (hh * 60 + 360) % 360;
+      const bin = bins[Math.floor(hh / 30) % 12], w = sat * (0.4 + v);
+      bin.w += w; bin.c[0] += r * w; bin.c[1] += g * w; bin.c[2] += b * w;
+    }
+    const n = d.length / 4;
+    const mean = all.map((v) => v / n);
+    const order = bins.map((b, i) => ({ ...b, i })).filter((b) => b.w > 0).sort((a, b) => b.w - a.w);
+    if (!order.length || order[0].w < 3) return NEUTRAL;
+    const first = order[0], avg = (b) => b.c.map((v) => v / b.w);
+    const far = order.find((b) => { const gap = Math.abs(b.i - first.i); return Math.min(gap, 12 - gap) >= 2 && b.w > first.w * 0.22; });
+    const c1 = boost(avg(first), 215);
+    const c2 = far ? boost(avg(far), 205) : boost(rotateHue(avg(first), 42), 190);
+    return { g1: toCss(c1), g2: toCss(c2), g3: toCss(boost(mean, 150)) };
+  } catch (_) { return null; }
+}
+
 // ---------------------------------------------------------------- the widget
 const ico = {
   prev: '<svg viewBox="0 0 24 24"><path d="M6 5h2.4v14H6zM20 5.5v13a.8.8 0 0 1-1.25.66L9.6 12.66a.8.8 0 0 1 0-1.32l9.15-6.5A.8.8 0 0 1 20 5.5z"/></svg>',
@@ -99,6 +147,7 @@ const ico = {
   mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><g transform="rotate(45 12 12)"><rect x="7.6" y="0.8" width="8.8" height="10.4" rx="4.4"/><path d="M7.6 5h8.8M7.6 8h8.8" stroke-width="1.4"/><rect x="9.8" y="12.6" width="4.4" height="9" rx="2.2"/></g></svg>',
   heart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20.4S3.6 15.2 3.6 9.2A4.6 4.6 0 0 1 12 6.6a4.6 4.6 0 0 1 8.4 2.6c0 6-8.4 11.2-8.4 11.2z"/></svg>',
   queue: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 6.5h12M3.5 12h7.5M3.5 17.5h7.5"/><path d="M15 12.6v6.8l5.6-3.4z" fill="currentColor"/></svg>',
+  repeat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2.8l3.6 3.6L17 10"/><path d="M3.6 11V9.4a3 3 0 0 1 3-3h13.9"/><path d="M7 21.2l-3.6-3.6L7 14"/><path d="M20.4 13v1.6a3 3 0 0 1-3 3H3.5"/><path class="one" d="M11.1 10.6l1.5-1v5.4" stroke-width="1.6"/></svg>',
   speakerLo: '<svg viewBox="0 0 24 24"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z"/></svg>',
   speakerHi: '<svg viewBox="0 0 24 24"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z"/><path d="M15 8.6a4.8 4.8 0 0 1 0 6.8M17.4 6a8.4 8.4 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
 };
@@ -109,7 +158,7 @@ W.musicstage = {
   create(box, ctx) {
     box.classList.add('ms-root');
     box.innerHTML = `
-      <div class="ms-bg"><img alt=""></div><div class="ms-veil"></div>
+      <div class="ms-bg"><img alt=""></div><div class="ms-veil"><i class="ms-g on"></i><i class="ms-g"></i></div>
       <div class="ms-stage">
         <div class="ms-glow"></div>
         <div class="ms-deck">
@@ -141,6 +190,7 @@ W.musicstage = {
             <button class="ms-ico" aria-label="Lyrics" data-act="lyrics">${ico.mic}</button>
             <button class="ms-ico" aria-label="Queue" data-act="queue">${ico.queue}</button>
             <button class="ms-ico ms-like" aria-label="Like" data-like>${ico.heart}</button>
+            <button class="ms-ico ms-rep" aria-label="Repeat" data-repeat>${ico.repeat}</button>
           </div>
           <div class="ms-vol"><i class="lo">${ico.speakerLo}</i><input type="range" class="ms-volr" min="0" max="100" step="1" value="50"><i class="hi">${ico.speakerHi}</i></div>
         </div>
@@ -171,8 +221,21 @@ W.musicstage = {
     window.addEventListener('resize', fit);
 
     // ---- art
-    art.addEventListener('load', () => { art.classList.add('on'); bg.classList.add('on'); setArtColor(averageColor(art)); });
-    art.addEventListener('error', () => { art.classList.remove('on'); bg.classList.remove('on'); });
+    // the backdrop: two layers that cross-fade, so a new song's colours melt in instead of snapping
+    const layers = [...box.querySelectorAll('.ms-g')];
+    let gSig = '';
+    const paintBg = (pal) => {
+      pal = pal || NEUTRAL;
+      const sig = pal.g1 + '|' + pal.g2 + '|' + pal.g3;
+      if (sig === gSig) return;
+      gSig = sig;
+      const next = layers.find((l) => !l.classList.contains('on')) || layers[0];
+      next.style.setProperty('--g1', pal.g1); next.style.setProperty('--g2', pal.g2); next.style.setProperty('--g3', pal.g3);
+      layers.forEach((l) => l.classList.toggle('on', l === next));
+    };
+    paintBg(null);
+    art.addEventListener('load', () => { art.classList.add('on'); bg.classList.add('on'); setArtColor(averageColor(art)); paintBg(coverPalette(art)); });
+    art.addEventListener('error', () => { art.classList.remove('on'); bg.classList.remove('on'); paintBg(null); });
 
     // ---- the record keeps its own angle so it spins up and winds down like a turntable instead of freezing
     const tickSpin = (now) => {
@@ -190,7 +253,7 @@ W.musicstage = {
     };
     const kick = () => { if (!raf && visible) raf = requestAnimationFrame(tickSpin); };
     if (window.IntersectionObserver) {
-      new IntersectionObserver((e) => { visible = e[e.length - 1].isIntersecting; if (visible) kick(); syncNav(); }).observe(box);
+      new IntersectionObserver((e) => { visible = e[e.length - 1].isIntersecting; box.classList.toggle('ms-off', !visible); if (visible) kick(); syncNav(); }).observe(box);
     }
 
     // ---- controls
@@ -271,6 +334,40 @@ W.musicstage = {
       setTimeout(() => like.classList.remove('pop'), 500);
       paintLike();
     });
+    // ---- repeat: the computer's media session (Spotify's desktop app answers it): off -> all -> one -> off
+    const repBtn = q('[data-repeat]');
+    let repMode = 'None', repCan = false, repId = null, repAt = 0;
+    const REPEAT_NEXT = { None: 2, List: 1, Track: 0 };      // Windows' modes: 0 none, 1 track, 2 list
+    const paintRep = () => {
+      repBtn.classList.toggle('on', repMode !== 'None');
+      repBtn.classList.toggle('one', repMode === 'Track');
+      repBtn.disabled = !repCan;
+      const word = repMode === 'Track' ? 'Repeat one' : repMode === 'List' ? 'Repeat all' : 'Repeat off';
+      repBtn.setAttribute('aria-label', word); repBtn.setAttribute('aria-pressed', String(repMode !== 'None'));
+    };
+    async function refreshRepeat(force) {
+      if (!force && performance.now() - repAt < 8000) return;
+      repAt = performance.now();
+      try {
+        const list = (await deckState(force)).media || [];
+        const p = list.find((x) => /spotify/i.test(x.name || '')) || list.find((x) => x.playing) || list[0];
+        repId = p?.id || null; repCan = !!p?.canRepeat; repMode = p?.repeat || 'None';
+      } catch (_) { repCan = false; }
+      paintRep();
+    }
+    repBtn.addEventListener('click', async (e) => {
+      e.stopPropagation(); haptic();
+      if (!repId) await refreshRepeat(true);
+      if (!repId || !repCan) { toast('The player on the computer does not allow repeat from here', 'err'); return; }
+      const value = REPEAT_NEXT[repMode] ?? 2, before = repMode;
+      repMode = value === 2 ? 'List' : value === 1 ? 'Track' : 'None'; paintRep();
+      try {
+        await deckCommand('media', { id: repId, op: 'repeat', value });
+        toast(repMode === 'Track' ? 'Repeat one' : repMode === 'List' ? 'Repeat all' : 'Repeat off', 'ok');
+        repAt = performance.now();
+      } catch (_) { repMode = before; paintRep(); toast('Could not change repeat', 'err'); refreshRepeat(true); }
+    });
+    paintRep();
     // tap the record to flip between it and the last panel
     q('.ms-deck').addEventListener('click', () => setView(view ? view : 'lyrics'));
     q('.ms-bar2').addEventListener('click', async (e) => {
@@ -397,6 +494,7 @@ W.musicstage = {
           return;
         }
         fit();
+        refreshRepeat(false);
         const m = D.state?.media, a = D.state?.audio;
         vol.disabled = (!a || a.canControl === false);
         box.classList.toggle('volume-unavailable', vol.disabled);
@@ -409,7 +507,7 @@ W.musicstage = {
           q('.ms-artist').textContent = t('w.pressToResume');
           q('.ms-source').textContent = '';
           fill.style.transform = 'scaleX(0)'; shownPos = ''; posEl.textContent = '0:00'; durEl.textContent = '0:00';
-          if (artId !== 0) { artId = 0; art.classList.remove('on'); bg.classList.remove('on'); setArtColor(null); }
+          if (artId !== 0) { artId = 0; art.classList.remove('on'); bg.classList.remove('on'); setArtColor(null); paintBg(null); }
           syncLyrics(null);
           return;
         }
@@ -420,9 +518,9 @@ W.musicstage = {
         if (m.artId !== artId) {
           artId = m.artId;
           if (m.artId) { art.src = bg.src = `${API}/art?id=${m.artId}`; }
-          else { art.classList.remove('on'); bg.classList.remove('on'); setArtColor(null); }
+          else { art.classList.remove('on'); bg.classList.remove('on'); setArtColor(null); paintBg(null); }
         }
-        if (m.title !== likeFor) { likeFor = m.title; curId = null; paintLike(); if (m.app === 'Spotify') refreshCurrent(); }
+        if (m.title !== likeFor) { likeFor = m.title; curId = null; paintLike(); repAt = 0; refreshRepeat(true); if (m.app === 'Spotify') refreshCurrent(); }
         syncLyrics(m);
       },
       destroy() { document.body.classList.remove('hide-dots'); clearTimeout(volTimer); clearTimeout(volumeRelease); setVolDragging(vol, false); if (raf) cancelAnimationFrame(raf); ro?.disconnect(); window.removeEventListener('resize', fit); },

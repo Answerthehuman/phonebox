@@ -753,7 +753,8 @@ W.shortcuts = {
   create(box, { o }) {
     const all = cfg.shortcuts || [];
     const ids = Array.isArray(o.ids) && o.ids.length ? o.ids : null;
-    const list = ids ? ids.map((id) => all.find((s) => s.id === id)).filter(Boolean) : all;
+    // keys that belong to the Minecraft and Meeting pages (ids starting "pb-") stay off the general shortcuts page
+    const list = ids ? ids.map((id) => all.find((s) => s.id === id)).filter(Boolean) : all.filter((s) => !String(s.id).startsWith('pb-'));
     if (!list.length) {
       box.append(h('div', 'empty', all.length ? t('w.shortcutsMissing') : t('w.shortcutsWait')));
       return {};

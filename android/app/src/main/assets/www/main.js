@@ -17,7 +17,10 @@ import './widgets/dictate.js';
 import './widgets/camera.js';
 import './widgets/spectrum.js';
 import './widgets/music.js';
-import { USE_FIXED_PAGES, KEEP_PAGE, fixedPages } from './pages.js';
+import './widgets/minecraft.js';
+import { initOnAir } from './widgets/meeting.js';
+import { ambientLabel, cycleAmbient, initAmbient, todLabel, toggleTod } from './ambient.js';
+import { USE_FIXED_PAGES, KEEP_PAGE, UPSTREAM_UPDATES, fixedPages } from './pages.js';
 import { SKIN } from './shortcut-skin.js';
 
 // PhoneBox desk panel. Pages are 12 × 6 grids of widgets, designed in the agent's settings page.
@@ -536,7 +539,7 @@ export function renderStatus(el) {
   const waiting = (D.work?.sessions || []).filter((s) => s.status === 'waiting').length;
   if (waiting) kids.push(h('span', 'sep', '·'), h('span', 'smini', t('status.waitingCount', { n: waiting })));
   const u = D.state?.update;
-  if (u) kids.push(h('span', 'sep', '·'), h('span', 'upd', u.app && via !== 'usb' ? t('status.updateUsb', { version: u.latest }) : t('status.updateAvailable', { version: u.latest })));
+  if (u && UPSTREAM_UPDATES) kids.push(h('span', 'sep', '·'), h('span', 'upd', u.app && via !== 'usb' ? t('status.updateUsb', { version: u.latest }) : t('status.updateAvailable', { version: u.latest })));
   el.replaceChildren(...kids);
   // Too long for the widget: drop the quota summaries, the most dispensable part.
   while (el.scrollWidth > el.clientWidth + 1 && el.querySelector('.qm')) [...el.querySelectorAll('.qm')].pop().remove();
@@ -1591,7 +1594,11 @@ export function openOverview() {
     wakeBtn.textContent = wakeLabel();
     if (Date.now() < wakeUntil) wakeUntil = Date.now() + wakeMs();
   });
-  $('ovPcs').replaceChildren(...(musicBtn ? [musicBtn] : []), wakeBtn, ...(pinBtn ? [pinBtn] : []), ...(pcs.length > 1 ? pcs.map((pc) => {
+  const ambBtn = h('button', 'ov-pc ov-amb', ambientLabel());
+  ambBtn.addEventListener('click', (e) => { e.stopPropagation(); haptic(); cycleAmbient(); ambBtn.textContent = ambientLabel(); });
+  const todBtn = h('button', 'ov-pc ov-tod', todLabel());
+  todBtn.addEventListener('click', (e) => { e.stopPropagation(); haptic(); toggleTod(); todBtn.textContent = todLabel(); });
+  $('ovPcs').replaceChildren(...(musicBtn ? [musicBtn] : []), wakeBtn, ambBtn, todBtn, ...(pinBtn ? [pinBtn] : []), ...(pcs.length > 1 ? pcs.map((pc) => {
     const b = h('button', 'ov-pc' + (pc.active ? ' on' : ''), '🖥️ ' + (pc.name || t('panel.computer')));
     b.addEventListener('click', (e) => { e.stopPropagation(); switchPc(pc); });
     return b;
@@ -2048,6 +2055,8 @@ export async function poll() {
 buildLayout();
 applyDisplay();
 tick();
+initOnAir();
+initAmbient();
 loadWeather();
 setInterval(loadWeather, 15 * 60_000);
 setInterval(() => { if (!nightOn) emit('fast'); }, 250);
