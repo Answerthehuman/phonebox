@@ -167,3 +167,17 @@ patch notes of the chat: Windows 11's "Use as a connected camera", Iriun or Droi
 7. **Music gradient** is calmer: one hue from the cover plus a close neighbour and a deep tone, always soft and dark (no more
    contrasting second colour).
 8. The ambient screen, hidden pages and overview from Patch 4 / 5 carry over unchanged.
+
+## Patch 6b: quieter reader, steady Minecraft page, no play/pause flicker
+
+- **RCON log spam and load.** The reader opened a new RCON connection every second and sent about 15 commands each time; each
+  command waits for a server tick, so on a busy server (your modded 26.2 world with the game running) it piled up. Now it keeps
+  one connection open, reads everything with a single `data get entity` plus one time query every 3 s, waits up to 20 s for a slow
+  answer, and keeps the last good reading for 20 s if one fails. The server log shows one RCON line pair instead of one every
+  few seconds. The "Can't keep up" warnings come from the server itself being short of memory/CPU (a modpack with TerraFirmaCraft
+  and the game on a 6 GB laptop); the reader only adds a small amount.
+- **Minecraft page flapping** was that: failed readings flipped the page between "live" and "down". Fixed by the keep-last-reading rule.
+- **Time on 26.x**: the game now answers `Timeline minecraft:day is at N tick(s)`; the reader understands both forms.
+- **Play / pause flicker** (`main.js`, `widgets/music.js`, `widgets/basic.js`): a tap flips the button at once, but the agent's next
+  state samples still said the old state for a moment, so the button jumped back and forth. The tapped state is now held for up to
+  3 s, until a sample agrees with it.

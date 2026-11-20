@@ -267,7 +267,7 @@ W.musicstage = {
       haptic();
       const action = btn.dataset.media;
       if (action === 'playpause' && media) {
-        media.playing = !media.playing; media.at = performance.now();
+        media.playing = !media.playing; media.at = performance.now(); media.playHold = { until: performance.now() + 3000, value: media.playing };
         box.classList.toggle('playing', media.playing); kick();
       }
       try {

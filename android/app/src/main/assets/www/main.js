@@ -798,6 +798,12 @@ export function mediaFrom(prev, m) {
   if (!m) return null;
   const next = { ...m, at: mediaSampleAt(m) };
   const now = performance.now();
+  // just after a play / pause tap the agent's next samples still say the old state for a moment: keep the tapped one until
+  // a sample agrees with it (or 3 s pass), so the button does not flick back and forth
+  const ph = prev?.playHold;
+  if (ph && ph.until > now && prev.title === m.title && prev.app === m.app) {
+    if (m.playing !== ph.value) { next.playing = ph.value; next.playHold = ph; }
+  }
   // just after the user moved the position bar the agent's samples still hold the old position for a moment: keep the
   // chosen one until a sample agrees with it (or the hold runs out)
   if (prev?.hold > now && prev.title === m.title && prev.app === m.app) {

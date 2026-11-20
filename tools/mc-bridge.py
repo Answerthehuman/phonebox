@@ -186,34 +186,46 @@ def parse_equipment(text):
 
 
 def read_player(r, name):
-    def get(path):
-        return after_data(r.command(f'data get entity {name} {path}'))
+    """One `data get entity NAME` for everything (each RCON command waits for a server tick, and a busy server answers slowly,
+    so the fewer commands the better), then the fields are cut out of that one answer."""
+    raw = (after_data(r.command(f'data get entity {name}')) or '').strip()
+    if not raw.startswith('{'):
+        raise ValueError('no player data')
+
+    def field(key):
+        return top_value(raw, key)
 
     def clock(what):
-        m = re.search(r'time is (-?\d+)', r.command('time query ' + what))
+        """Older games answer 'The time is N'; 26.x answers 'Timeline minecraft:day is at N tick(s)'."""
+        m = re.search(r'(?:time is|is at) (-?\d+)', r.command('time query ' + what))
         return int(m.group(1)) if m else None
 
-    pos_raw = get('Pos')
-    pos = [round(float(v), 1) for v in re.findall(r'-?\d+(?:\.\d+)?(?=d)', pos_raw or '')][:3]
-    mode = number(get('playerGameType'))
-    death = re.search(r'pos: \[I; (-?\d+), (-?\d+), (-?\d+)\]', get('LastDeathLocation') or '')
+    pos = [round(float(v), 1) for v in re.findall(r'-?\d+(?:\.\d+)?(?=d)', field('Pos') or '')][:3]
+    mode = number(field('playerGameType'))
+    death = re.search(r'pos: \[I; (-?\d+), (-?\d+), (-?\d+)\]', field('LastDeathLocation') or '')
+    eq = field('equipment') or ''
+    equip = {}
+    for slot in ('head', 'chest', 'legs', 'feet', 'offhand'):
+        obj = top_value(eq, slot) if eq.startswith('{') else None
+        ident = top_value(obj, 'id') if obj and obj.startswith('{') else None
+        equip[slot] = ident.strip('"\'').replace('minecraft:', '') if ident else None
     return {
         'death': [int(v) for v in death.groups()] if death else None,
         'player': name,
         'pos': pos if len(pos) == 3 else None,
-        'dim': (get('Dimension') or '').strip('"').replace('minecraft:', '') or None,
+        'dim': (field('Dimension') or '').strip('"').replace('minecraft:', '') or None,
         'mode': MODES.get(int(mode)) if mode is not None else None,
-        'slot': int(number(get('SelectedItemSlot'), 0)),
-        'health': number(get('Health')),
-        'absorb': number(get('AbsorptionAmount')),
-        'food': number(get('foodLevel')),
-        'sat': number(get('foodSaturationLevel')),
-        'level': int(number(get('XpLevel'), 0)),
-        'xp': number(get('XpP'), 0.0),
-        'daytime': clock('daytime'),
-        'day': clock('day'),
-        'armor': parse_equipment(r.command(f'data get entity {name} equipment')),
-        'hotbar': parse_inventory(r.command(f'data get entity {name} Inventory')),
+        'slot': int(number(field('SelectedItemSlot'), 0)),
+        'health': number(field('Health')),
+        'absorb': number(field('AbsorptionAmount')),
+        'food': number(field('foodLevel')),
+        'sat': number(field('foodSaturationLevel')),
+        'level': int(number(field('XpLevel'), 0)),
+        'xp': number(field('XpP'), 0.0),
+        'daytime': clock('day'),
+        'day': None,
+        'armor': equip,
+        'hotbar': parse_inventory('x has the following entity data: ' + (field('Inventory') or '[]')),
     }
 
 
@@ -265,6 +277,15 @@ def push(agent, data, ttl=12):
     urllib.request.urlopen(req, timeout=3).read()
 
 
+_conn = {'r': None}      # one RCON connection kept open between readings (a new one every second filled the server log and cost it threads)
+
+
+def drop():
+    if _conn['r']:
+        _conn['r'].close()
+    _conn['r'] = None
+
+
 def poll(server_dir, player=None, host='127.0.0.1', port=None, password=None):
     """One reading: a dict that the panel shows."""
     p = props(os.path.join(server_dir, 'server.properties'))
@@ -272,22 +293,25 @@ def poll(server_dir, player=None, host='127.0.0.1', port=None, password=None):
     password = password if password is not None else p.get('rcon.password', '')
     if password == '' and p.get('enable-rcon') != 'true':
         return {'status': 'rcon-off'}
-    try:
-        r = Rcon(host, port, password)
-    except PermissionError:
-        return {'status': 'rcon-password'}
-    except OSError:
-        return {'status': 'down'}
+    if _conn['r'] is None:
+        try:
+            _conn['r'] = Rcon(host, port, password, timeout=20.0)      # a busy server answers slowly: wait for it
+        except PermissionError:
+            return {'status': 'rcon-password'}
+        except OSError:
+            return {'status': 'down'}
+    r = _conn['r']
     try:
         names = online_players(r)
         if not names:
             return {'status': 'no-player'}
         name = player if player in names else names[0]
         return {'status': 'ok', **read_player(r, name), 'players': names}
+    except ValueError:
+        return {'status': 'down'}              # the connection is fine, the answer was not (a player just left): ask again
     except (OSError, ConnectionError):
+        drop()
         return {'status': 'down'}
-    finally:
-        r.close()
 
 
 def main():
@@ -311,9 +335,14 @@ def main():
         lock.bind(('127.0.0.1', LOCK_PORT))
     except OSError:
         return                                            # already running
-    last, last_sent, gone_since = None, 0, None
+    last, last_sent, gone_since, good = None, 0, None, None
     while True:
         data = poll(a.dir, a.player, port=a.rcon_port, password=a.password)
+        # one failed reading (a lagging server, a dropped connection) must not blank the panel: keep the last good one for 20 s
+        if data['status'] == 'ok':
+            good = (data, time.time())
+        elif data['status'] == 'down' and good and time.time() - good[1] < 20:
+            data = dict(good[0])
         data['at'] = int(time.time() * 1000)
         gone_since = (gone_since or time.time()) if data['status'] in ('down', 'rcon-off') else None
         if gone_since and time.time() - gone_since > 900:
@@ -321,11 +350,11 @@ def main():
         core = {k: v for k, v in data.items() if k != 'at'}
         if core != last or time.time() - last_sent > 5:   # a change goes out at once, otherwise every 5 s so the panel knows we are alive
             try:
-                push(a.agent, data)
+                push(a.agent, data, ttl=30)
                 last, last_sent = core, time.time()
             except OSError:
                 pass
-        time.sleep(1.0 if data['status'] == 'ok' else 3.0)
+        time.sleep(3.0 if data['status'] == 'ok' else 5.0)
 
 
 if __name__ == '__main__':
