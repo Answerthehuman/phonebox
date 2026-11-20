@@ -26,17 +26,17 @@ async function readProcs() {
   procBusy = true; mc.at = Date.now();
   try {
     const groups = (await api('/procs?top=120', 'GET', 4000)).groups || [];
-    // the game is a Java program with the game's memory use (TLauncher's own window is much smaller), or a Bedrock/Launcher process
-    mc.game = groups.some((g) => /minecraft/i.test(g.name || '') || (/^javaw$/i.test(g.name || '') && g.memMb > 900));
-    // your server is started by start.bat with java.exe and 1.5-2 GB of memory
-    mc.server = groups.some((g) => /^java$/i.test(g.name || '') && g.memMb > 700);
+    // the game runs as javaw (TLauncher's launcher too, which is fine: you opened it to play); the server is java.exe from start.bat.
+    // Memory figures are no use here: Windows trims a busy game's working set. The reader's answer is proof of a live server.
+    mc.game = groups.some((g) => /minecraft/i.test(g.name || '') || /^javaw$/i.test(g.name || ''));
+    mc.server = groups.some((g) => /^java$/i.test(g.name || ''));
   } catch (_) { /* keep what we knew */ }
   procBusy = false;
 }
 
 function activeNow(id) {
   if (id === 'meeting') { const p = D.state?.privacy; return !!(p && (p.mic || p.camera)); }
-  if (id === 'minecraft') return mc.game || mc.server || D.push?.mc?.data?.status === 'ok';
+  if (id === 'minecraft') return mc.game || mc.server || ['ok', 'no-player'].includes(D.push?.mc?.data?.status);
   return false;
 }
 

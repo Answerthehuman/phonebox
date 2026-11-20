@@ -128,7 +128,7 @@ W.minecraft = {
       h('div', null, 'The reader only looks: it never changes your world.'));
     setup.hidden = true;
     controls.append(
-      h('div', 'mc-col', hot, vitals, why, setup, modeRow, home),
+      h('div', 'mc-col', vitals, hot, why, setup, modeRow, home),
       h('div', 'mc-col', keys, cmds, playing),
     );
     function paintMode() {
@@ -146,19 +146,19 @@ W.minecraft = {
       return wrap;
     };
     let vitalsSig = '';
+    // laid out like the game's own HUD: hearts left and hunger right, the XP bar with the level above the hot bar
     function paintVitals(d) {
       const sig = JSON.stringify([d.health, d.absorb, d.food, d.level, d.xp, d.armor]);
       if (sig === vitalsSig) return;
       vitalsSig = sig;
-      const gear = Object.values(d.armor || {}).filter(Boolean);
       const worn = ['head', 'chest', 'legs', 'feet', 'offhand'].map((k) => d.armor?.[k]).filter(Boolean).map((id) => {
         const im = h('img', 'mc-gear-img'); im.alt = ''; im.src = `mcicons/${id}.png`; im.title = title(id); im.onerror = () => im.remove(); return im;
       });
       vitals.replaceChildren(
-        h('div', 'mc-vrow', meter('heart', d.health), meter('food', d.food), d.absorb > 0 ? h('span', 'mc-abs', '+' + Math.round(d.absorb)) : null),
-        h('div', 'mc-vrow', h('b', 'mc-lvl', String(d.level ?? 0)), h('span', 'mc-xpbar', h('i', null)), gear.length ? h('span', 'mc-gear', worn) : null),
+        h('div', 'mc-vrow top', h('span', 'mc-hearts', meter('heart', d.health), d.absorb > 0 ? h('span', 'mc-abs', '+' + Math.round(d.absorb)) : null), h('span', 'mc-gear', worn), meter('food', d.food)),
+        h('div', 'mc-xprow', h('b', 'mc-lvl', String(d.level ?? 0)), h('span', 'mc-xpbar', h('i', null))),
       );
-      vitals.querySelector('.mc-xpbar i').style.width = Math.max(0, Math.min(100, (d.xp || 0) * 100)) + '%';
+      vitals.querySelector('.mc-xpbar i').style.clipPath = `inset(0 ${100 - Math.max(0, Math.min(100, (d.xp || 0) * 100))}% 0 0)`;
     }
     const hhmm = (ticks) => { const hh = Math.floor(ticks / 1000 + 6) % 24, mm = Math.floor(((ticks % 1000) / 1000) * 60); return String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0'); };
     function paintLive() {
@@ -273,21 +273,23 @@ W.minecraft = {
       TABS.forEach(([k, , pane]) => { pane.hidden = k !== tab; });
     }
     serverBtn.addEventListener('click', async () => {
-      if (mc.server) { toast('The server is already running'); return; }
+      if (mc.server || ['ok', 'no-player'].includes(live()?.status)) { toast('The server is already running'); return; }
       if (await run(serverBtn, 'pb-mc-server')) toast('Starting the server: a console window opens on the computer', 'ok');
     });
     function paintStatus() {
       const d = live();
-      dot.classList.toggle('on', mc.game);
-      const bits = [mc.game ? 'game running' : 'game not running', mc.server ? 'server running' : 'server stopped'];
+      const alive = d && ['ok', 'no-player'].includes(d.status);       // the reader answered: the server is running
+      dot.classList.toggle('on', mc.game || d?.status === 'ok');
+      const bits = [mc.game || d?.status === 'ok' ? 'game running' : 'game not running', mc.server || alive ? 'server running' : 'server stopped'];
       if (d?.status === 'ok' && d.player) {
         bits.push(d.player);
         if (d.pos) bits.push(d.pos.map(Math.round).join(' ') + (d.dim && d.dim !== 'overworld' ? ' ' + d.dim.replace('the_', '') : ''));
         if (d.daytime != null) bits.push((d.day != null ? 'day ' + (d.day + 1) + ' ' : '') + hhmm(d.daytime));
       }
       sub.textContent = bits.join('  ·  ');
-      serverBtn.classList.toggle('on', mc.server);
-      serverBtn.textContent = mc.server ? 'Server running' : 'Start server';
+      const up = mc.server || alive;
+      serverBtn.classList.toggle('on', up);
+      serverBtn.textContent = up ? 'Server running' : 'Start server';
       serverBtn.disabled = !have('pb-mc-server');
       controls.querySelectorAll('.mc-key, .mc-mode, .mc-btn.home').forEach((b) => { const id = b.dataset.id || (b.dataset.k && 'pb-mc-gm-' + b.dataset.k) || (b.classList.contains('home') && 'pb-mc-home'); if (id) b.disabled = !have(id); });
     }

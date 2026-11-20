@@ -181,3 +181,21 @@ patch notes of the chat: Windows 11's "Use as a connected camera", Iriun or Droi
 - **Play / pause flicker** (`main.js`, `widgets/music.js`, `widgets/basic.js`): a tap flips the button at once, but the agent's next
   state samples still said the old state for a moment, so the button jumped back and forth. The tapped state is now held for up to
   3 s, until a sample agrees with it.
+
+## Patch 7: steady RCON, in-game icons, HUD-style hot bar
+
+- **RCON connections that kept shutting down.** The reader sent a second "marker" request behind every command to find the end
+  of long answers; this server closes the connection after a few of those, so the reader reconnected every ~10 s (and each reconnect
+  logged two lines and started a thread). The marker is gone: long answers (over 4096 bytes) are read as consecutive packets. One
+  connection now lives for as long as the server does. Checked live: 14 readings over a minute on one connection, no server-log lines.
+  That also fixes the page dropping out of sync (the readings were being cut off every few seconds).
+- **Game / server detection** on the page no longer relies on memory use (Windows trims a running game's working set, so it said
+  "game not running"): any `javaw` counts as the game, `java` as the server, and the reader's answer proves a live server.
+- **Real inventory icons** (`tools/extract-mc-icons.py`, now needs Pillow and numpy): blocks are rendered as the game draws them in the
+  inventory (isometric cubes, stairs, slabs, fences, trapdoors, lanterns, chests, shulker boxes... from the game's own models and
+  textures), flat items use their own texture. 1,475 of 1,537 items; the rest (banners, beds, heads, stained glass, decorated pots,
+  conduit, copper golem statues) show the coloured tile. Still local-only (`.gitignore`).
+- **Left half laid out like the player's HUD**: hearts on the left, armour in the middle, hunger on the right (filling from the right as in
+  the game), the XP bar with the level above it, then the hot bar, game modes and Go Home.
+- **Unpin**: the phone locks itself because Android is set to "lock device when unpinning" (the app only asks Android to leave pinning); that
+  is a phone security setting, so it is not changed from here.

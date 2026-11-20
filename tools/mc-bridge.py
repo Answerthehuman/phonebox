@@ -24,6 +24,7 @@ MODES = {0: 'survival', 1: 'creative', 2: 'adventure', 3: 'spectator'}
 # ---------------------------------------------------------------- RCON
 class Rcon:
     def __init__(self, host, port, password, timeout=3.0):
+        self.timeout = timeout
         self.sock = socket.create_connection((host, port), timeout=timeout)
         self.sock.settimeout(timeout)
         self.n = 10
@@ -53,19 +54,30 @@ class Rcon:
         return buf
 
     def command(self, text):
-        """Runs a command. A long answer comes in several packets, so a second, unknown request is sent right behind it:
-        its answer marks the end."""
+        """Runs a command. A long answer (over 4096 bytes) arrives in several packets with the same id, so while a piece is full
+        the next one is read too. (A second 'marker' request behind each command would end the answer, but this server hangs
+        up after a few of those, so it is not used.)"""
         self.n += 2
-        rid, end = self.n, self.n + 1
+        rid = self.n
         self._send(rid, 2, text)
-        self._send(end, 100, '')
-        out = []
-        while True:
-            got, _, body = self._recv()
-            if got == end:
-                break
-            if got == rid:
+        out, more = [], False
+        try:
+            while True:
+                try:
+                    got, _, body = self._recv()
+                except socket.timeout:
+                    if more:
+                        break                            # no further piece came: the answer was exactly that long
+                    raise
+                if got != rid:
+                    continue
                 out.append(body)
+                if len(body.encode('utf-8')) < 4000:
+                    break
+                more = True
+                self.sock.settimeout(1.5)               # a full piece: more may follow
+        finally:
+            self.sock.settimeout(self.timeout)
         return ''.join(out)
 
     def close(self):
@@ -354,7 +366,7 @@ def main():
                 last, last_sent = core, time.time()
             except OSError:
                 pass
-        time.sleep(3.0 if data['status'] == 'ok' else 5.0)
+        time.sleep(2.0 if data['status'] == 'ok' else 5.0)
 
 
 if __name__ == '__main__':
