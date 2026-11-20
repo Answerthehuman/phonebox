@@ -139,3 +139,31 @@ patch notes of the chat: Windows 11's "Use as a connected camera", Iriun or Droi
    Optional pages; Computers). The old mini-maps and row of pills are gone.
 8. `tools/install-shortcuts.py` now also installs the game-mode, Go Home and server shortcuts (`--server-dir` if your server folder
    moves). Already run on this computer.
+
+## Patch 6: commands work again, real Minecraft icons, level / hunger / armour, calmer gradient, meeting layout
+
+1. **Why taps did nothing (the important one).** The laptop agent had updated itself to 0.9.24 (before updates were switched off in
+   Patch 4) while the phone app was still 0.9.19. 0.9.24 changed the USB link: the adb tunnel now points at a private port that
+   only the 0.9.24 app understands. The 0.9.19 app still tried that tunnel first, and for a command (a POST) it never falls back to
+   Wi-Fi, so every button that sends something to the computer (play/pause, keys, Start server) failed with "The PC did not take
+   that", while reading data still worked over Wi-Fi. **Fix: the panel is now built on the matching 0.9.24 app** (the APK the agent
+   had already downloaded and checked, SHA-256 a84f354a...). My changes were merged into 0.9.24's web files (three-way merge:
+   stock 0.9.19 / mine / stock 0.9.24; conflicts in `main.js`, `widgets/basic.js`, `widgets/sky.js` resolved by hand, the rest took
+   0.9.24's changes). Verified on the phone: a tap on the Music page's play/pause pauses and resumes the laptop's player, and the agent
+   log shows the phone on USB. Build with `python tools/patch-apk.py PhoneBox-0.9.24.apk android/app/src/main/assets/www ...`.
+2. **Start server** works (it was the same failure). It runs `start.bat` and the reader.
+3. **RCON is on** in your `server.properties` (backup: `server.properties.before-phonebox`). The server listens for it on all network
+   interfaces, protected by a long random password; keep Windows Firewall's "private networks" box for Java unticked if other devices
+   on your network should not be able to try it. Tested with your real server: it started, RCON answered, the reader reported "no
+   player"; it has not yet seen a player, so the hot bar itself has only been tested against a stand-in server.
+4. **Real item pictures in the hot bar**, plus the game's own hearts, hunger drumsticks and XP bar. `tools/extract-mc-icons.py` copies
+   them from your installed 26.2 game (1,153 items, 11 HUD sprites) into `www/mcicons/`, which is in `.gitignore`: they are Mojang's
+   and are never committed or pushed; they exist only inside the APK built on your computer. Items with no flat picture (chests,
+   beds, banners...) show the coloured tile.
+5. **Level, hunger and more**: XP level with progress bar, health (hearts, with absorption), hunger, armour and off-hand pieces, plus
+   position, dimension, in-game day and time in the status line (`tools/mc-bridge.py` reads them from the server).
+6. **Meeting page**: the explanation and the "use this phone as the laptop camera" tip moved to the top right; the buttons fill the
+   rest of the page and scale with it.
+7. **Music gradient** is calmer: one hue from the cover plus a close neighbour and a deep tone, always soft and dark (no more
+   contrasting second colour).
+8. The ambient screen, hidden pages and overview from Patch 4 / 5 carry over unchanged.

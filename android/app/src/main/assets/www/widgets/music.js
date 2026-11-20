@@ -91,19 +91,22 @@ export function loadLyrics(m) {
 
 
 // ---------------------------------------------------------------- colours from the cover
-// Three colours for the backdrop: the strongest hue of the cover, a second hue that is not its neighbour, and the
-// cover's overall tone. Grey covers get a neutral blue-grey so the page never goes flat.
+// Three colours for the backdrop, all from the cover's strongest hue: that hue, a close neighbour of it, and a deep tone of
+// the other side, kept soft and dark so it never shouts. Grey covers get a neutral blue-grey so the page never goes flat.
 const NEUTRAL = { g1: '96, 98, 122', g2: '52, 54, 76', g3: '40, 42, 56' };
 const toCss = (c) => c.map((v) => Math.round(Math.max(0, Math.min(255, v)))).join(', ');
 const boost = (c, peak) => { const k = peak / (Math.max(...c) || 1); return c.map((v) => v * k); };
-function rotateHue(c, deg) {
-  const [r, g, b] = c.map((v) => v / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
-  let hh = 0;
-  if (d) hh = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
-  hh = ((hh * 60 + deg) % 360 + 360) % 360;
-  const l = (mx + mn) / 2, sat = d ? d / (1 - Math.abs(2 * l - 1)) : 0, k = (1 - Math.abs(2 * l - 1)) * sat, x = k * (1 - Math.abs(((hh / 60) % 2) - 1)), m = l - k / 2;
-  const [r1, g1, b1] = hh < 60 ? [k, x, 0] : hh < 120 ? [x, k, 0] : hh < 180 ? [0, k, x] : hh < 240 ? [0, x, k] : hh < 300 ? [x, 0, k] : [k, 0, x];
-  return [(r1 + m) * 255, (g1 + m) * 255, (b1 + m) * 255];
+function rgbHue(r, g, b) {
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+  if (!d) return 0;
+  const h6 = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return (h6 * 60 + 360) % 360;
+}
+function hsl(h, s, l) {
+  h = ((h % 360) + 360) % 360;
+  const k = (1 - Math.abs(2 * l - 1)) * s, x = k * (1 - Math.abs(((h / 60) % 2) - 1)), m = l - k / 2;
+  const [r, g, b] = h < 60 ? [k, x, 0] : h < 120 ? [x, k, 0] : h < 180 ? [0, k, x] : h < 240 ? [0, x, k] : h < 300 ? [x, 0, k] : [k, 0, x];
+  return [(r + m) * 255, (g + m) * 255, (b + m) * 255];
 }
 export function coverPalette(img) {
   try {
@@ -129,11 +132,14 @@ export function coverPalette(img) {
     const mean = all.map((v) => v / n);
     const order = bins.map((b, i) => ({ ...b, i })).filter((b) => b.w > 0).sort((a, b) => b.w - a.w);
     if (!order.length || order[0].w < 3) return NEUTRAL;
-    const first = order[0], avg = (b) => b.c.map((v) => v / b.w);
-    const far = order.find((b) => { const gap = Math.abs(b.i - first.i); return Math.min(gap, 12 - gap) >= 2 && b.w > first.w * 0.22; });
-    const c1 = boost(avg(first), 215);
-    const c2 = far ? boost(avg(far), 205) : boost(rotateHue(avg(first), 42), 190);
-    return { g1: toCss(c1), g2: toCss(c2), g3: toCss(boost(mean, 150)) };
+    // One hue from the cover, then only neighbours of it, kept soft and dark: a calm analogous trio, never a loud contrast.
+    const first = order[0], [r0, g0, b0] = first.c.map((v) => v / first.w);
+    const hue = rgbHue(r0, g0, b0);
+    return {
+      g1: toCss(hsl(hue, 0.42, 0.34)),
+      g2: toCss(hsl(hue + 26, 0.36, 0.25)),
+      g3: toCss(hsl(hue - 18, 0.24, 0.15)),
+    };
   } catch (_) { return null; }
 }
 

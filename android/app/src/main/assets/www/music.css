@@ -29,9 +29,9 @@
 .ms-veil { position: absolute; inset: 0; z-index: -1; overflow: hidden; background: #0b0b0c; }
 .ms-g { position: absolute; inset: -18%; opacity: 0; transition: opacity 1.6s ease; will-change: opacity, transform;
   background:
-    radial-gradient(52% 50% at 16% 14%, rgba(var(--g1, 96, 98, 122), .82), transparent 72%),
-    radial-gradient(50% 54% at 88% 84%, rgba(var(--g2, 52, 54, 76), .7), transparent 72%),
-    radial-gradient(60% 46% at 82% 8%, rgba(var(--g3, 40, 42, 56), .42), transparent 72%),
+    radial-gradient(52% 50% at 16% 14%, rgba(var(--g1, 96, 98, 122), .78), transparent 72%),
+    radial-gradient(50% 54% at 88% 84%, rgba(var(--g2, 52, 54, 76), .62), transparent 72%),
+    radial-gradient(60% 46% at 82% 8%, rgba(var(--g3, 40, 42, 56), .4), transparent 72%),
     radial-gradient(70% 40% at 20% 100%, rgba(var(--g1, 96, 98, 122), .26), transparent 75%),
     linear-gradient(180deg, rgba(0, 0, 0, 0) 35%, rgba(0, 0, 0, .5) 100%); }
 .ms-g.on { opacity: 1; }

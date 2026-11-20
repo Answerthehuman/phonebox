@@ -248,3 +248,47 @@ body.tod-on #pager { z-index: 1; }
 .mc-here-btns { display: flex; gap: 6px; }
 .mc-here-btns .mc-chip { padding: 5px 10px; font-size: 12px; }
 #ovPcs { margin: 0; width: 100%; display: flex; flex-direction: column; flex-wrap: nowrap; justify-content: flex-start; align-items: stretch; gap: 12px; }
+
+/* ================= Patch 6: real item pictures and the game's own hearts, hunger and XP bar ================= */
+.mc-sq { image-rendering: pixelated; }
+.mc-img { position: absolute; inset: 11%; width: 78%; height: 78%; object-fit: cover; object-position: 0 0; image-rendering: pixelated; pointer-events: none; }
+.mc-img[hidden] { display: none; }
+.mc-sq.pic .mc-sw { display: none; }
+.mc-slot.sel .mc-sq { background: #2b2b2e; }
+.mc-vitals { display: flex; flex-direction: column; gap: 5px; }
+.mc-vrow { display: flex; align-items: center; gap: 10px; min-height: 15px; }
+.mc-meter { display: inline-flex; gap: 1px; }
+.mc-cell { width: 14px; height: 14px; background-size: 100% 100%; background-repeat: no-repeat; image-rendering: pixelated; }
+.mc-meter.heart .mc-cell { background-image: url(mcicons/hud/heart_container.png); }
+.mc-meter.heart .mc-cell[data-s="full"] { background-image: url(mcicons/hud/heart_full.png), url(mcicons/hud/heart_container.png); }
+.mc-meter.heart .mc-cell[data-s="half"] { background-image: url(mcicons/hud/heart_half.png), url(mcicons/hud/heart_container.png); }
+.mc-meter.food .mc-cell { background-image: url(mcicons/hud/food_empty.png); }
+.mc-meter.food .mc-cell[data-s="full"] { background-image: url(mcicons/hud/food_full.png); }
+.mc-meter.food .mc-cell[data-s="half"] { background-image: url(mcicons/hud/food_half.png); }
+.mc-abs { font-size: 11px; font-weight: 700; color: #ffd60a; }
+.mc-lvl { min-width: 22px; text-align: center; font-size: 15px; font-weight: 800; color: #80ff20; text-shadow: 0 1px 0 #1c3a05, 1px 0 0 #1c3a05, -1px 0 0 #1c3a05, 0 -1px 0 #1c3a05; font-variant-numeric: tabular-nums; }
+.mc-xpbar { position: relative; flex: 0 0 200px; width: 200px; height: 9px; background: url(mcicons/hud/experience_bar_background.png) 0 0 / 100% 100% no-repeat; image-rendering: pixelated; }
+.mc-xpbar i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; overflow: hidden; background: url(mcicons/hud/experience_bar_progress.png) 0 0 / 200px 100% no-repeat; image-rendering: pixelated; }
+.mc-gear { display: inline-flex; gap: 3px; margin-left: auto; }
+.mc-gear-img { width: 20px; height: 20px; image-rendering: pixelated; object-fit: cover; object-position: 0 0; }
+.mc-who small { max-width: 52vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+
+/* ================= Patch 6: Meeting layout, big buttons that fill the page, tips in the top right ================= */
+.mt-top { display: flex; align-items: flex-start; gap: 10px; }
+.mt-top .mt-badge { flex: 1 1 auto; min-width: 0; }
+.mt-side { position: relative; flex: 0 1 36%; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; text-align: right; }
+.mt-side .mt-note { font-size: 11px; line-height: 1.35; max-width: 100%; }
+.mt-cam { position: relative; font-size: 12px; }
+.mt-cam summary { cursor: pointer; list-style: none; padding: 5px 11px; border-radius: 999px; background: var(--card); color: var(--muted); font-weight: 600; white-space: nowrap; }
+.mt-cam summary::-webkit-details-marker { display: none; }
+.mt-cam summary::after { content: " ▾"; }
+.mt-cam[open] summary::after { content: " ▴"; }
+.mt-cam > div { position: absolute; right: 0; top: calc(100% + 6px); width: min(340px, 62vw); z-index: 6; padding: 10px 12px; border-radius: 14px; background: #1c1c1e; box-shadow: 0 8px 24px rgba(0, 0, 0, .55); color: var(--muted); text-align: left; line-height: 1.5; max-height: none; overflow: visible; }
+.mt-grid { container-type: size; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 12px; align-items: center; justify-items: center; align-content: stretch; flex: 1 1 0; min-height: 0; }
+.mt-key { width: 100%; height: 100%; min-width: 0; justify-content: center; gap: clamp(6px, 3cqh, 14px); }
+.mt-ico { width: min(100%, 50cqh); height: auto; aspect-ratio: 1; }
+.mt-ico svg { width: 46%; height: auto; }
+.mt-k-label { font-size: clamp(12px, 5.5cqh, 17px); font-weight: 600; color: var(--text); opacity: .8; }
+[data-look="teams"] .mt-ico { width: min(100%, 70cqh); height: auto; aspect-ratio: 1.35; border-radius: 16px; }
+[data-look="teams"] .mt-ico svg { width: 34%; }
+@media (max-height: 430px) { .mt-badge { padding: 8px 12px; } }

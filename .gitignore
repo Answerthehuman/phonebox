@@ -55,3 +55,6 @@ tools/ui-tests/test-results/
 *.idsig
 font-source/
 !android/app/src/main/assets/www/fonts/OFL.txt
+
+# Mojang pictures extracted from the installed game (tools/extract-mc-icons.py): local only, never committed
+android/app/src/main/assets/www/mcicons/

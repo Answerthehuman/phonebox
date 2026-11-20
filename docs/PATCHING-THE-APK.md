@@ -24,3 +24,11 @@ Check every panel file before building, in module mode (a plain `node --check fi
 
 To see the panel with your computer's live data in a desktop browser: `python tools/live-panel.py`, then open
 <http://127.0.0.1:8791/panel/>.
+
+
+## Keep the app and the computer agent on the same version
+
+The agent and the phone app have to match: an agent newer than the app breaks the USB link for commands (see Patch 6 in
+PATCHES.md). Patch on top of the APK that matches your agent (the agent keeps the one it downloaded in
+`%LOCALAPPDATA%/PhoneBox/updates/PhoneBox-<version>.apk`; copy it here and check it against `SHA256SUMS-<version>.txt`). If the agent
+is ever updated, patch the new APK too: `git merge-file` the web files against the stock ones, as in Patch 6.

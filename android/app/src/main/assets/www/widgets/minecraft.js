@@ -91,8 +91,13 @@ W.minecraft = {
     const hot = h('div', 'mc-hot'), slots = [];
     for (let i = 0; i < 9; i++) {
       const sw = h('span', 'mc-sw'), cnt = h('em', 'mc-cnt'), nm = h('small', 'mc-nm');
-      const s = h('div', 'mc-slot', h('div', 'mc-sq', sw, cnt), nm);
-      slots.push({ el: s, sw, cnt, nm }); hot.append(s);
+      // the game's own picture over a coloured tile; the tile shows when the game has no flat picture for the item
+      const img = h('img', 'mc-img'); img.alt = ''; img.hidden = true; img.draggable = false;
+      const sq = h('div', 'mc-sq', sw, img, cnt);
+      img.addEventListener('error', () => { img.hidden = true; img.dataset.bad = img.dataset.id; sq.classList.remove('pic'); });
+      img.addEventListener('load', () => { sq.classList.add('pic'); });
+      const s = h('div', 'mc-slot', sq, nm);
+      slots.push({ el: s, sq, sw, img, cnt, nm }); hot.append(s);
     }
     const vitals = h('div', 'mc-vitals'), why = h('div', 'mc-why');
     const modeRow = h('div', 'mc-modes');
@@ -118,8 +123,8 @@ W.minecraft = {
     playing.addEventListener('click', () => { haptic(); const at = pages.findIndex((p) => p.id === 'apple-music'); if (at >= 0) goPage(at); });
     why.addEventListener('click', () => { haptic(); setup.hidden = !setup.hidden; });
     const setup = h('div', 'mc-setup', h('b', null, 'One-time setup for the live hot bar'),
-      h('div', null, '1. On the computer run:  python tools/mc-bridge.py --enable-rcon  (it turns RCON on in server.properties and keeps a backup).'),
-      h('div', null, '2. Restart your Minecraft server, then always start it with the Start server button here (it also starts the reader).'),
+      h('div', null, '1. RCON must be on in server.properties: python tools/mc-bridge.py --enable-rcon (keeps a backup).'),
+      h('div', null, '2. Restart your Minecraft server, then start it with the Start server button here (it also starts the reader).'),
       h('div', null, 'The reader only looks: it never changes your world.'));
     setup.hidden = true;
     controls.append(
@@ -130,7 +135,32 @@ W.minecraft = {
       const d = live(), cur = d?.status === 'ok' && d.mode ? d.mode : chosen;
       modeBtns.forEach((b) => b.classList.toggle('on', b.dataset.k === cur));
     }
-    const heartRow = (v, max, ch) => { const n = Math.max(0, Math.min(max, Math.round(v))); return ch.repeat(Math.ceil(n / 2)); };
+    // ten hearts / ten drumsticks drawn from the game's own sprites (full, half, empty), like the in-game bars
+    const meter = (kind, value) => {
+      const wrap = h('span', 'mc-meter ' + kind);
+      for (let i = 0; i < 10; i++) {
+        const left = (value ?? 0) - i * 2, c = h('i', 'mc-cell');
+        c.dataset.s = left >= 2 ? 'full' : left >= 1 ? 'half' : 'empty';
+        wrap.append(c);
+      }
+      return wrap;
+    };
+    let vitalsSig = '';
+    function paintVitals(d) {
+      const sig = JSON.stringify([d.health, d.absorb, d.food, d.level, d.xp, d.armor]);
+      if (sig === vitalsSig) return;
+      vitalsSig = sig;
+      const gear = Object.values(d.armor || {}).filter(Boolean);
+      const worn = ['head', 'chest', 'legs', 'feet', 'offhand'].map((k) => d.armor?.[k]).filter(Boolean).map((id) => {
+        const im = h('img', 'mc-gear-img'); im.alt = ''; im.src = `mcicons/${id}.png`; im.title = title(id); im.onerror = () => im.remove(); return im;
+      });
+      vitals.replaceChildren(
+        h('div', 'mc-vrow', meter('heart', d.health), meter('food', d.food), d.absorb > 0 ? h('span', 'mc-abs', '+' + Math.round(d.absorb)) : null),
+        h('div', 'mc-vrow', h('b', 'mc-lvl', String(d.level ?? 0)), h('span', 'mc-xpbar', h('i', null)), gear.length ? h('span', 'mc-gear', worn) : null),
+      );
+      vitals.querySelector('.mc-xpbar i').style.width = Math.max(0, Math.min(100, (d.xp || 0) * 100)) + '%';
+    }
+    const hhmm = (ticks) => { const hh = Math.floor(ticks / 1000 + 6) % 24, mm = Math.floor(((ticks % 1000) / 1000) * 60); return String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0'); };
     function paintLive() {
       const d = live();
       const ok = d?.status === 'ok';
@@ -143,16 +173,14 @@ W.minecraft = {
         s.sw.textContent = it ? initials(it.id) : '';
         s.cnt.textContent = it && it.count > 1 ? it.count : '';
         s.nm.textContent = it ? title(it.id) : '';
+        if (!it) { s.img.hidden = true; s.img.dataset.id = ''; s.sq.classList.remove('pic'); }
+        else if (s.img.dataset.id !== it.id) { s.img.dataset.id = it.id; s.img.hidden = false; s.sq.classList.remove('pic'); s.img.src = `mcicons/${it.id}.png`; }
       });
       if (ok) {
-        const pos = d.pos ? `${Math.round(d.pos[0])}  ${Math.round(d.pos[1])}  ${Math.round(d.pos[2])}` : '';
-        vitals.replaceChildren(
-          h('span', 'mc-hp', d.health != null ? heartRow(d.health, 20, '♥') : ''),
-          h('span', 'mc-food', d.food != null ? heartRow(d.food, 20, '●') : ''),
-          h('span', 'mc-pos', pos + (d.dim && d.dim !== 'overworld' ? '   ' + d.dim.replace('the_', '') : '')),
-        );
+        paintVitals(d);
         why.textContent = ''; why.hidden = true;
       } else {
+        vitalsSig = '';
         vitals.replaceChildren();
         const text = WHY[d?.status] || (d ? '' : 'Live hot bar is off. One-time setup: tap here.');
         why.textContent = text; why.hidden = !text;
@@ -252,7 +280,11 @@ W.minecraft = {
       const d = live();
       dot.classList.toggle('on', mc.game);
       const bits = [mc.game ? 'game running' : 'game not running', mc.server ? 'server running' : 'server stopped'];
-      if (d?.status === 'ok' && d.player) bits.push(d.player);
+      if (d?.status === 'ok' && d.player) {
+        bits.push(d.player);
+        if (d.pos) bits.push(d.pos.map(Math.round).join(' ') + (d.dim && d.dim !== 'overworld' ? ' ' + d.dim.replace('the_', '') : ''));
+        if (d.daytime != null) bits.push((d.day != null ? 'day ' + (d.day + 1) + ' ' : '') + hhmm(d.daytime));
+      }
       sub.textContent = bits.join('  ·  ');
       serverBtn.classList.toggle('on', mc.server);
       serverBtn.textContent = mc.server ? 'Server running' : 'Start server';

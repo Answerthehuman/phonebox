@@ -70,7 +70,9 @@ W.meeting = {
     const phoneCam = h('details', 'mt-cam', h('summary', null, 'Use this phone as the laptop camera'),
       h('div', null, 'Windows 11 can do this without an app: Settings > Bluetooth & devices > Mobile devices > turn on "Use as a connected camera", pick this phone, and approve on it. It then shows up as a camera in Meet, Teams and Discord. Free apps such as Iriun or DroidCam work on Windows 10 too.'));
     badge.append(h('i', 'mt-dot'), badgeText, clock);
-    box.append(badge, chips, grid, note, phoneCam);
+    // the explanation and the phone-camera tip sit in the top right; the buttons take everything below
+    const side = h('div', 'mt-side', note, phoneCam);
+    box.append(h('div', 'mt-top', badge, side), chips, grid);
 
     let svc = store.get('mt-svc', 'meet');
     let liveSince = 0, camOn = null;

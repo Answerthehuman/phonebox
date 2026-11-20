@@ -174,9 +174,24 @@ def parse_inventory(text):
     return sorted(items, key=lambda i: i['slot'])
 
 
+def parse_equipment(text):
+    """Armour and off hand from `data get entity NAME equipment`: {head, chest, legs, feet, offhand} -> item id or None."""
+    raw = (after_data(text) or '').strip()
+    out = {}
+    for slot in ('head', 'chest', 'legs', 'feet', 'offhand'):
+        obj = top_value(raw, slot) if raw.startswith('{') else None
+        ident = top_value(obj, 'id') if obj and obj.startswith('{') else None
+        out[slot] = ident.strip('"\'').replace('minecraft:', '') if ident else None
+    return out
+
+
 def read_player(r, name):
     def get(path):
         return after_data(r.command(f'data get entity {name} {path}'))
+
+    def clock(what):
+        m = re.search(r'time is (-?\d+)', r.command('time query ' + what))
+        return int(m.group(1)) if m else None
 
     pos_raw = get('Pos')
     pos = [round(float(v), 1) for v in re.findall(r'-?\d+(?:\.\d+)?(?=d)', pos_raw or '')][:3]
@@ -190,7 +205,14 @@ def read_player(r, name):
         'mode': MODES.get(int(mode)) if mode is not None else None,
         'slot': int(number(get('SelectedItemSlot'), 0)),
         'health': number(get('Health')),
+        'absorb': number(get('AbsorptionAmount')),
         'food': number(get('foodLevel')),
+        'sat': number(get('foodSaturationLevel')),
+        'level': int(number(get('XpLevel'), 0)),
+        'xp': number(get('XpP'), 0.0),
+        'daytime': clock('daytime'),
+        'day': clock('day'),
+        'armor': parse_equipment(r.command(f'data get entity {name} equipment')),
         'hotbar': parse_inventory(r.command(f'data get entity {name} Inventory')),
     }
 
