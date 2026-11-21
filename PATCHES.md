@@ -226,3 +226,9 @@ patch notes of the chat: Windows 11's "Use as a connected camera", Iriun or Droi
 - **Meeting page selector** uses Discord's real icon (copied from the installed app, `icons/discord.png`) and Google Meet's logo; Teams is
   not installed here, so its tile is drawn to look like its logo.
 - **Darker gradient**: all three colours (and the grey fallback) are several shades darker.
+
+## Patch 10: drag to reorder pages, Discord icon the right way up
+
+- **Reorder pages**: in the overview, hold a page tile for about 0.4 s until it lifts, drag it over another tile and let go. The order
+  is kept on the phone (`page-order`); pages that appear later (Minecraft, Meeting) go to the end until you move them.
+- **Discord icon** in the Meeting page's selector was upside down (the icon extracted from Windows is stored bottom-up); flipped.

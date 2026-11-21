@@ -1294,11 +1294,13 @@ export function portraitLayout(widgets) {
   return { pos, rows: Math.max(12, occ.length) };
 }
 
+// the order of the pages, as arranged in the overview (hold a page and drag); pages not in the saved list keep their place at the end
+const pageRank = (id) => { const o = store.get('page-order', []); const i = o.indexOf(id); return i < 0 ? 999 : i; };
 export function buildLayout() {
   const enabled = (cfg.pages || []).filter((p) => p.enabled !== false && Array.isArray(p.widgets));
   const portrait = isPortrait();
   // The seven fixed pages (pages.js) replace the layout saved in the agent; see USE_FIXED_PAGES there.
-  const next = (USE_FIXED_PAGES ? fixedPages(portrait) : (enabled.length ? enabled : FALLBACK_PAGES)).filter((pg) => pageVisible(pg.id));   // Minecraft / Meeting only while needed (visibility.js)
+  const next = (USE_FIXED_PAGES ? fixedPages(portrait) : (enabled.length ? enabled : FALLBACK_PAGES)).filter((pg) => pageVisible(pg.id)).sort((a, b) => pageRank(a.id) - pageRank(b.id));   // Minecraft / Meeting only while needed (visibility.js)
   const h12 = hour12();
   // the active language belongs in the key: the widgets render their texts once, when they are created
   const key = JSON.stringify([next, cfg.shortcuts, cfg.display?.showSeconds, cfg.display?.hour12, h12, cfg.display?.appearance, portrait, I18n?.getLang()]);
@@ -1793,6 +1795,57 @@ pager.addEventListener('scroll', onScroll, { passive: true });
 // reopened, so the next settings sync from the computer does not pin the screen again.
 let pinOverride = null;
 const pinLabel = () => ((pinOverride ?? cfg.display?.pin === true) ? 'Unpin screen' : 'Pin screen');   // null: follow the desktop setting; true / false: chosen with the button below
+// Hold a page tile for a moment, then drag it over another to change the order; let go to keep it. The order is kept on this phone.
+let dragEndedAt = 0;
+function enableReorder(grid) {
+  if (grid._reorder) return;
+  grid._reorder = true;
+  let drag = null, timer = 0, sx = 0, sy = 0;
+  const place = (e) => {
+    const el = drag.el;
+    el.style.transform = 'none';
+    const r = el.getBoundingClientRect();
+    el.style.transform = `translate(${e.clientX - (r.left + r.width / 2)}px, ${e.clientY - (r.top + r.height / 2)}px) scale(1.06)`;
+  };
+  const finish = (save) => {
+    clearTimeout(timer);
+    if (!drag) return;
+    const el = drag.el;
+    el.classList.remove('drag'); el.style.transform = '';
+    drag = null; dragEndedAt = Date.now();
+    if (save) {
+      store.set('page-order', [...grid.children].map((c) => c.dataset.id));
+      buildLayout(); openOverview();
+    }
+  };
+  grid.addEventListener('pointerdown', (e) => {
+    const t = e.target.closest('.ov-tile');
+    if (!t) return;
+    sx = e.clientX; sy = e.clientY;
+    timer = setTimeout(() => {
+      drag = { el: t }; t.classList.add('drag'); haptic();
+      try { t.setPointerCapture(e.pointerId); } catch (_) {}
+      place(e);
+    }, 380);
+  });
+  grid.addEventListener('pointermove', (e) => {
+    if (!drag) { if (Math.hypot(e.clientX - sx, e.clientY - sy) > 10) clearTimeout(timer); return; }
+    e.preventDefault();
+    const under = [...grid.children].find((c) => {
+      if (c === drag.el) return false;
+      const r = c.getBoundingClientRect();
+      return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+    });
+    if (under) {
+      const kids = [...grid.children];
+      if (kids.indexOf(drag.el) < kids.indexOf(under)) under.after(drag.el); else under.before(drag.el);
+    }
+    place(e);
+  });
+  grid.addEventListener('pointerup', () => finish(true));
+  grid.addEventListener('pointercancel', () => finish(false));
+}
+
 // the colour of each page's icon in the overview (the Settings app's way of telling rows apart)
 const PAGE_COLORS = { home: '#0a84ff', 'apple-music': '#fa2d48', system: '#30d158', sessions: '#ff9f0a', quotas: '#bf5af2', shortcuts: '#5ac8fa', clock: '#ff6482', minecraft: '#62c554', meeting: '#ff3b30' };
 export function openOverview() {
@@ -1801,10 +1854,12 @@ export function openOverview() {
   const tile = (p, i) => {
     const b = h('button', 'ov-tile' + (i === curPage ? ' on' : ''), h('span', 'ov-ico', p.icon || ''), h('span', 'ov-name', p.title), h('span', 'ov-num', String(i + 1)));
     b.style.setProperty('--c', PAGE_COLORS[p.id] || '#8e8e93');
-    b.addEventListener('click', (e) => { e.stopPropagation(); haptic(); closeOverview(); goPage(i, true); });
+    b.dataset.id = p.id;
+    b.addEventListener('click', (e) => { e.stopPropagation(); if (Date.now() - dragEndedAt < 400) return; haptic(); closeOverview(); goPage(i, true); });
     return b;
   };
   $('ovGrid').replaceChildren(...pages.map(tile));
+  enableReorder($('ovGrid'));
   renderRulesBtn();
 
   // settings: grouped rows like the iOS Settings app, label on the left and the current choice on the right
