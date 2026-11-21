@@ -802,7 +802,10 @@ export function mediaFrom(prev, m) {
   // a sample agrees with it (or 3 s pass), so the button does not flick back and forth
   const ph = prev?.playHold;
   if (ph && ph.until > now && prev.title === m.title && prev.app === m.app) {
-    if (m.playing !== ph.value) { next.playing = ph.value; next.playHold = ph; }
+    // show the tapped state for the whole hold; let go only once two samples in a row agree with it
+    next.playing = ph.value;
+    if (m.playing === ph.value) ph.agree = (ph.agree || 0) + 1; else ph.agree = 0;
+    if (ph.agree < 2) next.playHold = ph;
   }
   // just after the user moved the position bar the agent's samples still hold the old position for a moment: keep the
   // chosen one until a sample agrees with it (or the hold runs out)

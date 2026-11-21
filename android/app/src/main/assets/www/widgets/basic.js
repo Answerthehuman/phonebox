@@ -122,7 +122,8 @@ W.media = {
       haptic();
       const action = btn.dataset.media;
       if (action === 'playpause' && media) {
-        media.playing = !media.playing; // optimistic update media.playHold = { until: performance.now() + 3000, value: media.playing };
+        media.playing = !media.playing; // optimistic update
+        media.playHold = { until: performance.now() + 8000, value: media.playing };
         media.at = performance.now();
         box.classList.toggle('playing', media.playing);
       }
@@ -256,7 +257,7 @@ W.media = {
           if (artId !== 0) { artId = 0; img.classList.remove('on'); setArtColor(null); }
           return;
         }
-        box.classList.toggle('playing', m.playing);
+        box.classList.toggle('playing', !!(media ? media.playing : m.playing));
         q('.m-app-name').textContent = m.app || 'Media';
         sourceIcon.innerHTML = sourceIcons[m.app] || '';
         q('.m-title').textContent = m.title || 'Unknown track';

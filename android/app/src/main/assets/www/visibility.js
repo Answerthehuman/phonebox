@@ -20,7 +20,7 @@ export function cycleVis(id) {
 // what is running on the computer (from the agent's process list)
 export const mc = { game: false, server: false, at: 0 };
 const lastActive = {};
-let procBusy = false;
+let procBusy = false, readerTry = 0;
 async function readProcs() {
   if (procBusy || Date.now() - mc.at < 8000) return;
   procBusy = true; mc.at = Date.now();
@@ -62,6 +62,10 @@ export function initVisibility() {
   const check = async () => {
     await readProcs();
     for (const id of OPTIONAL) if (activeNow(id)) lastActive[id] = Date.now();
+    // the live Minecraft data comes from the reader (tools/mc-bridge.py): when the server is up and nothing is arriving, start it
+    // (it is safe to start twice, a second copy exits at once)
+    const fresh = (D.push?.mc?.expiresAt || 0) > Date.now();
+    if (mc.server && !fresh && Date.now() - readerTry > 30_000) { readerTry = Date.now(); api('/run/pb-mc-bridge', 'POST', 6000).catch(() => {}); }
     const now = OPTIONAL.map(pageVisible).join();
     if (now === sig) return;
     const was = sig.split(',');

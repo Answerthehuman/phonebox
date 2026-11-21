@@ -4,7 +4,7 @@
 //
 // Lyrics come from LRCLIB (https://lrclib.net, free, no account): when a track plays, its title, artist, album and
 // length are looked up there. Nothing else leaves the phone. Radio streams are never looked up.
-import { toast, API, D, api, averageColor, emit, fmtTime, h, haptic, media, safeFetch, setArtColor, setMediaState, setVolDragging, store, t, volDragging } from '../main.js';
+import { toast, API, D, api, averageColor, emit, fmtTime, h, haptic, media, safeFetch, setArtColor, streaming, setMediaState, setVolDragging, store, t, volDragging } from '../main.js';
 import { W } from '../registry.js';
 import { deckCommand, deckState, integrationCommand, invalidateDeckState } from './controls.js';
 
@@ -136,9 +136,9 @@ export function coverPalette(img) {
     const first = order[0], [r0, g0, b0] = first.c.map((v) => v / first.w);
     const hue = rgbHue(r0, g0, b0);
     return {
-      g1: toCss(hsl(hue, 0.42, 0.34)),
-      g2: toCss(hsl(hue + 26, 0.36, 0.25)),
-      g3: toCss(hsl(hue - 18, 0.24, 0.15)),
+      g1: toCss(hsl(hue, 0.44, 0.38)),
+      g2: toCss(hsl(hue + 24, 0.40, 0.30)),
+      g3: toCss(hsl(hue - 20, 0.34, 0.22)),
     };
   } catch (_) { return null; }
 }
@@ -226,6 +226,30 @@ W.musicstage = {
     fit();
     window.addEventListener('resize', fit);
 
+
+    // ---- breathing in time with the music: the PC's bass (from the spectrum the agent already analyses) gives the beat,
+    // the median gap between bass hits gives the tempo (folded into 70-160 bpm), and the backdrop swells once per beat
+    let beatDur = 0, lastOn = 0, ivs = [], hist = [];
+    const setBeat = (ms) => { if (!beatDur || Math.abs(ms - beatDur) / beatDur > 0.06) { beatDur = ms; box.style.setProperty('--beat', ms + 'ms'); } };
+    const onSpectrum = (e) => {
+      const b = e.detail?.b;
+      if (!b || !visible || !media?.playing) return;
+      const bass = (b[0] + b[1] + b[2] + b[3] + b[4] + b[5]) / 6;
+      hist.push(bass); if (hist.length > 40) hist.shift();
+      const avg = hist.reduce((a, c) => a + c, 0) / hist.length, now = performance.now();
+      if (bass > avg * 1.25 + 5 && bass >= (hist[hist.length - 2] || 0) && now - lastOn > 300) {
+        if (lastOn && now - lastOn < 1500) { ivs.push(now - lastOn); if (ivs.length > 10) ivs.shift(); }
+        lastOn = now;
+        if (ivs.length >= 4) {
+          let ms = [...ivs].sort((x, y) => x - y)[ivs.length >> 1];
+          while (ms < 375) ms *= 2;
+          while (ms > 857) ms /= 2;
+          setBeat(Math.round(ms));
+        }
+      }
+    };
+    window.addEventListener('phonebox-spectrum', onSpectrum);
+    const keepCapture = setInterval(() => { if (visible && media?.playing && streaming()) api('/spectrum', 'GET', 1500).catch(() => {}); }, 2000);
     // ---- art
     // the backdrop: two layers that cross-fade, so a new song's colours melt in instead of snapping
     const layers = [...box.querySelectorAll('.ms-g')];
@@ -267,7 +291,7 @@ W.musicstage = {
       haptic();
       const action = btn.dataset.media;
       if (action === 'playpause' && media) {
-        media.playing = !media.playing; media.at = performance.now(); media.playHold = { until: performance.now() + 3000, value: media.playing };
+        media.playing = !media.playing; media.at = performance.now(); media.playHold = { until: performance.now() + 8000, value: media.playing };
         box.classList.toggle('playing', media.playing); kick();
       }
       try {
@@ -472,7 +496,7 @@ W.musicstage = {
     const syncLyrics = (m) => {
       const key = m ? `${m.title}|${m.artist}|${m.durMs}` : '';
       if (key === lyricKey) return;
-      lyricKey = key; lyr = null; active = -2; lines.style.transform = '';
+      lyricKey = key; lyr = null; active = -2; lines.style.transform = ''; ivs = []; hist = []; lastOn = 0; beatDur = 0; box.style.removeProperty('--beat');
       if (!m) return showNote('');
       if (m.app === 'Internet Radio') { lyr = 'none'; return showNote('Live radio'); }
       showNote('');
@@ -506,7 +530,7 @@ W.musicstage = {
         box.classList.toggle('volume-unavailable', vol.disabled);
         if (a && !volDragging) { vol.value = a.volume; paintVol(a.volume); }
         box.classList.toggle('idle', !m);
-        box.classList.toggle('playing', !!m?.playing);
+        box.classList.toggle('playing', !!(media ? media.playing : m?.playing));   // the held state, not the raw sample
         kick();
         if (!m) {
           q('.ms-title').textContent = t('w.nothingPlaying');
@@ -529,7 +553,7 @@ W.musicstage = {
         if (m.title !== likeFor) { likeFor = m.title; curId = null; paintLike(); repAt = 0; refreshRepeat(true); if (m.app === 'Spotify') refreshCurrent(); }
         syncLyrics(m);
       },
-      destroy() { document.body.classList.remove('hide-dots'); clearTimeout(volTimer); clearTimeout(volumeRelease); setVolDragging(vol, false); if (raf) cancelAnimationFrame(raf); ro?.disconnect(); window.removeEventListener('resize', fit); },
+      destroy() { window.removeEventListener('phonebox-spectrum', onSpectrum); clearInterval(keepCapture); document.body.classList.remove('hide-dots'); clearTimeout(volTimer); clearTimeout(volumeRelease); setVolDragging(vol, false); if (raf) cancelAnimationFrame(raf); ro?.disconnect(); window.removeEventListener('resize', fit); },
     };
   },
 };

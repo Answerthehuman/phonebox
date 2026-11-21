@@ -199,3 +199,19 @@ patch notes of the chat: Windows 11's "Use as a connected camera", Iriun or Droi
   the game), the XP bar with the level above it, then the hot bar, game modes and Go Home.
 - **Unpin**: the phone locks itself because Android is set to "lock device when unpinning" (the app only asks Android to leave pinning); that
   is a phone security setting, so it is not changed from here.
+
+## Patch 8: reader starts itself, play/pause flicker (really), full-colour beat-synced backdrop
+
+- **Minecraft page "not working today".** The live data comes from the reader (`tools/mc-bridge.py`), which exits after the server has
+  been down for 15 minutes; the server was started directly (`start.bat`), not with the page's Start server button, so nothing
+  started the reader again. The panel now starts it by itself (through the agent's `pb-mc-bridge` shortcut) whenever the server is
+  running and no live data is arriving; a second copy exits at once, so this is safe. Checked: started by hand it reported
+  immediately; the automatic start is untested on the phone.
+- **Play / pause flicker, second cause.** Patch 6b held the tapped state, but (a) on the Home page's player the hold was never set (the
+  line had landed inside a comment) and (b) both players painted the button from the raw agent sample instead of the held state. Fixed
+  both; the hold is now 8 s and lets go only after two consecutive samples agree.
+- **Music backdrop is a complete gradient**: the centre now carries the cover's colour too (a diagonal blend of the three colours plus
+  a central glow), no black middle. **It breathes once per beat**: the bass of the PC's audio (the spectrum the agent already analyses,
+  streamed to the phone) gives the beat, the median gap between bass hits gives the tempo (folded into 70-160 bpm) and the whole backdrop
+  swells in that rhythm; 4 s per breath until a tempo is found. The tempo is an estimate from sound, not Spotify's own BPM (Spotify no
+  longer gives that out). Not yet seen with real music on the phone.
