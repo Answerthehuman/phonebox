@@ -314,3 +314,6 @@ body.tod-on #pager { z-index: 1; }
 .mc-vitals, .mc-vrow.top, .mc-xprow { width: 100%; }
 .mc-cell { width: 14px; height: 14px; }
 .mc-hearts { gap: 3px; }
+
+.mt-mark img { width: 100%; height: 100%; object-fit: contain; }
+.mt-mark { width: 20px; height: 20px; flex-basis: 20px; }

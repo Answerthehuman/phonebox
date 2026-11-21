@@ -28,9 +28,11 @@ const ICON = {
 };
 // the little mark on each service's tab
 const MARK = {
-  meet: '<svg viewBox="0 0 24 24"><rect x="2.5" y="6" width="12" height="12" rx="2.4" fill="#00ac47"/><path d="M14.5 10.2l6-3.4v10.4l-6-3.4z" fill="#ffba00"/><path d="M2.5 15.6v-3.2h5v3.2z" fill="#ea4335" opacity=".0"/><rect x="2.5" y="6" width="5" height="4" rx="2" fill="#2684fc"/></svg>',
-  teams: '<svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5" fill="#5b5fc7"/><path d="M7 8.4h10M12 8.4V17" stroke="#fff" stroke-width="2.4" stroke-linecap="round" fill="none"/></svg>',
-  discord: '<svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="6" fill="#5865f2"/><ellipse cx="8.6" cy="12" rx="1.6" ry="2" fill="#fff"/><ellipse cx="15.4" cy="12" rx="1.6" ry="2" fill="#fff"/><path d="M7 16.4c3 1.6 7 1.6 10 0" stroke="#fff" stroke-width="1.6" stroke-linecap="round" fill="none"/></svg>',
+  // Google Meet's camera mark (its own five colours), Teams' purple tile with the T and a second person, and Discord's own
+  // icon, copied from the installed app (icons/discord.png)
+  meet: '<svg viewBox="0 0 87.5 72"><path fill="#00832d" d="M49.5 36l8.53 9.75 11.47 7.33 2-17.02-2-16.64-11.69 6.44z"/><path fill="#0066da" d="M0 51.5V66c0 3.315 2.685 6 6 6h14.5l3-10.96-3-9.54-9.95-3z"/><path fill="#e94235" d="M20.5 0L0 20.5l10.55 3 9.95-3 2.95-9.41z"/><path fill="#2684fc" d="M20.5 20.5H0v31h20.5z"/><path fill="#00ac47" d="M82.6 8.68L69.5 19.42v33.66l13.16 10.79c1.97 1.54 4.85.135 4.85-2.37V11c0-2.535-2.945-3.925-4.91-2.32zM49.5 36v15.5h-29V72h43c3.315 0 6-2.685 6-6V53.08z"/><path fill="#ffba00" d="M63.5 0h-43v20.5h29V36l20-16.57V6c0-3.315-2.685-6-6-6z"/><path fill="#00832d" d="M49.5 36v-15.5h-29V36z"/></svg>',
+  teams: '<svg viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="18" rx="3.2" fill="#4b53bc"/><circle cx="18.2" cy="6.2" r="3" fill="#7b83eb"/><path d="M13.5 10.5h6.4c1.1 0 2 .9 2 2V17a3.2 3.2 0 0 1-3.2 3.2h-.4a3.2 3.2 0 0 1-3.2-3.2z" fill="#7b83eb"/><path d="M4.4 8.6h7.2M8 8.6V16" stroke="#fff" stroke-width="2.1" stroke-linecap="round" fill="none"/></svg>',
+  discord: '<img src="icons/discord.png" alt="">',
 };
 
 // what each service offers: [id suffix, label, icon, kind]   kind: mic | cam | danger | open (drawn differently)

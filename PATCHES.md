@@ -215,3 +215,14 @@ patch notes of the chat: Windows 11's "Use as a connected camera", Iriun or Droi
   streamed to the phone) gives the beat, the median gap between bass hits gives the tempo (folded into 70-160 bpm) and the whole backdrop
   swells in that rhythm; 4 s per breath until a tempo is found. The tempo is an estimate from sound, not Spotify's own BPM (Spotify no
   longer gives that out). Not yet seen with real music on the phone.
+
+## Patch 9: beat data for the breathing, real meeting-app icons, darker gradient
+
+- **Why the breathing could not work.** The agent only analyses the PC's audio while an enabled page in its settings has a Spectrum
+  widget, and the phone's own fixed pages are invisible to the agent, so no beat data ever arrived. `tools/install-shortcuts.py` now adds
+  a hidden page `pb-beat` with a Spectrum widget (never shown on the phone). The beat detector also read the wrong bands (the first six
+  are empty); it now uses the low end (bands 6-13). Tested against the live agent with Spotify playing: it settled on 82 bpm (732 ms
+  per breath) after about 8 s and the backdrop animation ran at that period. Until a tempo is found it breathes every 4 s.
+- **Meeting page selector** uses Discord's real icon (copied from the installed app, `icons/discord.png`) and Google Meet's logo; Teams is
+  not installed here, so its tile is drawn to look like its logo.
+- **Darker gradient**: all three colours (and the grey fallback) are several shades darker.

@@ -106,6 +106,13 @@ def main():
                 added += 1
         cfg['shortcuts'] = keep + SHORTCUTS
         print(f'shortcuts: {added} added, {updated} refreshed, {len(keep)} of yours left alone')
+    # A hidden page holding a Spectrum widget: the agent only analyses the PC's audio while an enabled page has one, and the music
+    # page's beat-synced breathing needs those frames. The phone shows its own fixed pages, so this page is never displayed.
+    pages = cfg.setdefault('pages', [])
+    pages[:] = [p for p in pages if p.get('id') != 'pb-beat']
+    if not a.remove:
+        pages.append({'id': 'pb-beat', 'title': 'Beat (for the music page)', 'icon': '📶', 'enabled': True,
+                      'widgets': [{'id': 'pb-beat-0', 'type': 'spectrum', 'x': 0, 'y': 0, 'w': 12, 'h': 6, 'options': {}}]})
     if a.no_updates:
         u = cfg.setdefault('updates', {})
         print(f'updates: auto {u.get("auto")} -> False, repo {u.get("repo")} -> {OWN_REPO}')

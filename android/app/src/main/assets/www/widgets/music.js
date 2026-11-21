@@ -93,7 +93,7 @@ export function loadLyrics(m) {
 // ---------------------------------------------------------------- colours from the cover
 // Three colours for the backdrop, all from the cover's strongest hue: that hue, a close neighbour of it, and a deep tone of
 // the other side, kept soft and dark so it never shouts. Grey covers get a neutral blue-grey so the page never goes flat.
-const NEUTRAL = { g1: '96, 98, 122', g2: '52, 54, 76', g3: '40, 42, 56' };
+const NEUTRAL = { g1: '62, 64, 84', g2: '36, 38, 56', g3: '26, 28, 40' };
 const toCss = (c) => c.map((v) => Math.round(Math.max(0, Math.min(255, v)))).join(', ');
 const boost = (c, peak) => { const k = peak / (Math.max(...c) || 1); return c.map((v) => v * k); };
 function rgbHue(r, g, b) {
@@ -136,9 +136,9 @@ export function coverPalette(img) {
     const first = order[0], [r0, g0, b0] = first.c.map((v) => v / first.w);
     const hue = rgbHue(r0, g0, b0);
     return {
-      g1: toCss(hsl(hue, 0.44, 0.38)),
-      g2: toCss(hsl(hue + 24, 0.40, 0.30)),
-      g3: toCss(hsl(hue - 20, 0.34, 0.22)),
+      g1: toCss(hsl(hue, 0.46, 0.28)),
+      g2: toCss(hsl(hue + 24, 0.42, 0.21)),
+      g3: toCss(hsl(hue - 20, 0.36, 0.14)),
     };
   } catch (_) { return null; }
 }
@@ -234,7 +234,9 @@ W.musicstage = {
     const onSpectrum = (e) => {
       const b = e.detail?.b;
       if (!b || !visible || !media?.playing) return;
-      const bass = (b[0] + b[1] + b[2] + b[3] + b[4] + b[5]) / 6;
+      let bass = 0;
+      for (let i = 6; i < 14; i++) bass += b[i];            // the low end: the first six bands sit below 40 Hz and stay empty
+      bass /= 8;
       hist.push(bass); if (hist.length > 40) hist.shift();
       const avg = hist.reduce((a, c) => a + c, 0) / hist.length, now = performance.now();
       if (bass > avg * 1.25 + 5 && bass >= (hist[hist.length - 2] || 0) && now - lastOn > 300) {
