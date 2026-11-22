@@ -59,7 +59,49 @@ and a cost overview.
 <p align="center"><a href="docs/tour-0.6.mp4"><img src="docs/tour-0.6.gif" width="780" alt="PhoneBox tour showing notifications, a Claude Code permission prompt and automatic page switching"></a><br>
 <sub>A tour with demo data: notifications, permission prompts and automatic page switching. <a href="docs/tour-0.6.mp4">Watch the MP4</a></sub></p>
 
-## Quick start
+## This fork: the patched panel (branch `apple-ui-patches`)
+
+This repository is a fork of [ersinkoc/phonebox](https://github.com/ersinkoc/phonebox) with a re-styled phone panel and extra pages
+(Music with lyrics, Minecraft, Meeting, an ambient screen, drag-to-reorder pages). What each change does is in
+[PATCHES.md](PATCHES.md). The computer agent is **not** modified: only the phone app's web files and some helper scripts are.
+
+> **Do not use the original `irm https://raw.githubusercontent.com/ersinkoc/phonebox/main/setup.ps1 | iex` command for this fork.** It installs the
+> original author's latest agent and stock phone app (none of these changes), and switches their auto-updater on, which would replace
+> the patched app. Use the steps below instead.
+
+**On a Windows 10/11 computer** (normal PowerShell window; needs Git and Python 3 with `pip install pillow numpy`):
+
+```powershell
+git clone -b apple-ui-patches https://github.com/Answerthehuman/phonebox.git
+cd phonebox
+
+# 1. the stock agent, pinned to 0.9.24 (the version the patched app matches), without touching a phone yet
+.\setup.ps1 -Version 0.9.24 -NoPhone
+
+# 2. add the Minecraft / Meeting / music-beat settings and switch the original author's updater off
+python tools\install-shortcuts.py --no-updates
+```
+
+**The phone app.** The APK is not in the repository (it is built from the original author's APK and, for the Minecraft page, pictures
+from your own game, which are Mojang's and must not be published). Either copy your finished `PhoneBox-0.9.24-apple.apk` to the phone and
+install it, or build it on the computer:
+
+```powershell
+# the original 0.9.24 APK: from the agent's download folder after step 1, or from the author's release page
+copy "$env:LOCALAPPDATA\PhoneBox\updates\PhoneBox-0.9.24.apk" .
+python tools\extract-mc-icons.py          # optional: real Minecraft item pictures from your installed game
+# then patch, align and sign it as described in docs/PATCHING-THE-APK.md (use the same signing key every time)
+```
+
+Then pair the phone as in "Connect the phone" below (USB once, or the Wi-Fi QR code). For the Minecraft page's live hot bar see
+[PATCHES.md](PATCHES.md) (Patch 5 to 7): `python tools\mc-bridge.py --enable-rcon`, then restart your server.
+
+Keep the agent and the app on the same version: the agent's auto-update stays off in this fork. If you ever update the agent, patch the
+matching APK too ([docs/PATCHING-THE-APK.md](docs/PATCHING-THE-APK.md)).
+
+## Quick start (original project)
+
+The steps below are the original project's. For this fork use the section above.
 
 You need an **Android 5+ phone** (Android 6 or later recommended) and a supported computer. USB uses a data cable and USB debugging; Wi-Fi pairing
 works without either. Release agents include .NET, so you do not need to install the runtime.
