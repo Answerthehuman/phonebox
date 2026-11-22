@@ -93,6 +93,17 @@ python tools\extract-mc-icons.py          # optional: real Minecraft item pictur
 # then patch, align and sign it as described in docs/PATCHING-THE-APK.md (use the same signing key every time)
 ```
 
+**Starting the agent.** Setup puts a "start with Windows" shortcut in place, so after a restart the agent starts by itself. To start it by hand
+(or if you answered "no" to start-with-Windows), paste this into PowerShell:
+
+```powershell
+Start-Process "$env:LOCALAPPDATA\PhoneBox\app\PhoneBoxAgent.exe" -WorkingDirectory "$env:LOCALAPPDATA\PhoneBox\app"
+```
+
+Its settings page is at <http://127.0.0.1:8765>. To repair or reinstall the agent run `.\setup.ps1 -Version 0.9.24 -NoPhone` again from the
+cloned folder (your settings in `%APPDATA%\PhoneBox` are kept). The Minecraft reader needs no command: the phone starts it when your server is
+running.
+
 Then pair the phone as in "Connect the phone" below (USB once, or the Wi-Fi QR code). For the Minecraft page's live hot bar see
 [PATCHES.md](PATCHES.md) (Patch 5 to 7): `python tools\mc-bridge.py --enable-rcon`, then restart your server.
 
