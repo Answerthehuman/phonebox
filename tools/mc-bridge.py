@@ -6,6 +6,7 @@ the Minecraft page can show the hot bar, position, game mode, health and food of
     python tools/mc-bridge.py --enable-rcon     # once: turns RCON on in server.properties (a backup is kept), then restart the server
     python tools/mc-bridge.py                   # runs until the server has been gone for 15 minutes (the panel's "Start server" runs it)
     python tools/mc-bridge.py --once            # one reading printed as JSON, nothing sent (for checking)
+    python tools/mc-bridge.py --stop            # saves the world and stops the server (the panel's Stop server button)
 
 It only READS (`list`, `data get entity ...`); it never changes the world. Everything stays on this computer: RCON on
 127.0.0.1, the agent on 127.0.0.1:8765. Standard library only.
@@ -333,12 +334,21 @@ def main():
     ap.add_argument('--player', help='which player to follow when several are online')
     ap.add_argument('--enable-rcon', action='store_true')
     ap.add_argument('--once', action='store_true')
+    ap.add_argument('--stop', action='store_true', help='save the world and stop the server (RCON: stop)')
     ap.add_argument('--rcon-port', type=int)
     ap.add_argument('--password')
     a = ap.parse_args()
 
     if a.enable_rcon:
         return enable_rcon(a.dir)
+    if a.stop:
+        p = props(os.path.join(a.dir, 'server.properties'))
+        try:
+            r = Rcon('127.0.0.1', a.rcon_port or int(p.get('rcon.port') or 25575), a.password or p.get('rcon.password', ''), timeout=20)
+            print(r.command('stop'))
+        except (OSError, PermissionError) as e:
+            sys.exit('Could not reach the server: ' + str(e))
+        return
     if a.once:
         print(json.dumps(poll(a.dir, a.player, port=a.rcon_port, password=a.password), indent=1))
         return

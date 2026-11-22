@@ -45,6 +45,8 @@ def build(server_dir):
     bridge = {'id': 'pb-mc-bridge', 'label': 'MC reader', 'icon': '👁', 'color': '#62c554', 'cmd': py,
               'args': f'"{os.path.join(here, "mc-bridge.py")}" --dir "{server_dir}"', 'toggle': False}
     bat = {'id': 'pb-mc-server-bat', 'label': 'MC server', 'icon': '🖥', 'color': '#62c554', 'cmd': os.path.join(server_dir, 'start.bat'), 'cwd': server_dir, 'toggle': False}
+    stop = {'id': 'pb-mc-stop', 'label': 'MC stop server', 'icon': '⏹', 'color': '#ff453a', 'cmd': py,
+            'args': f'"{os.path.join(here, "mc-bridge.py")}" --stop --dir "{server_dir}"', 'toggle': False}
     return [
         # ---- Minecraft (Java keys; F3 combinations as in the game's own debug screen)
         key('pb-mc-shot', 'MC screenshot', 'f2'), key('pb-mc-hud', 'MC hide HUD', 'f1'), key('pb-mc-debug', 'MC debug screen', 'f3'),
@@ -56,7 +58,7 @@ def build(server_dir):
         macro('pb-mc-gm-survival', 'MC survival', say('/gamemode survival')), macro('pb-mc-gm-creative', 'MC creative', say('/gamemode creative')),
         macro('pb-mc-gm-adventure', 'MC adventure', say('/gamemode adventure')), macro('pb-mc-gm-spectator', 'MC spectator', say('/gamemode spectator')),
         macro('pb-mc-home', 'MC go home', say('/trigger home'), icon='🏠'),
-        bat, bridge, macro('pb-mc-server', 'MC start server', ['shortcut:pb-mc-server-bat', 'wait:2500', 'shortcut:pb-mc-bridge'], icon='▶️', color='#62c554'),
+        stop, bat, bridge, macro('pb-mc-server', 'MC start server', ['shortcut:pb-mc-server-bat', 'wait:2500', 'shortcut:pb-mc-bridge'], icon='▶️', color='#62c554'),
         # ---- Google Meet (browser tab in front)
         key('pb-mt-meet-mic', 'Meet mute', 'ctrl+d'), key('pb-mt-meet-cam', 'Meet camera', 'ctrl+e'),
         key('pb-mt-meet-hand', 'Meet raise hand', 'ctrl+alt+h'), key('pb-mt-meet-chat', 'Meet chat', 'ctrl+alt+c'), key('pb-mt-meet-cc', 'Meet captions', 'c'),

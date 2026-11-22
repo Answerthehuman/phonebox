@@ -232,3 +232,15 @@ patch notes of the chat: Windows 11's "Use as a connected camera", Iriun or Droi
 - **Reorder pages**: in the overview, hold a page tile for about 0.4 s until it lifts, drag it over another tile and let go. The order
   is kept on the phone (`page-order`); pages that appear later (Minecraft, Meeting) go to the end until you move them.
 - **Discord icon** in the Meeting page's selector was upside down (the icon extracted from Windows is stored bottom-up); flipped.
+
+## Patch 11: Start / Stop server button, drag-to-reorder made easier
+
+- **Server button was wrong.** "Server running" came from "some Java program is running", but the game itself is Java, so it showed
+  "running" while the server was stopped (and the line on the left, which used the reader's answer, disagreed). The state now comes only from
+  the reader talking to the server over RCON, so the line and the button always agree. The button is **Start server / Starting… / Stop
+  server / Stopping…**; Stop needs two taps (the first says "Tap again to stop") and saves the world first
+  (`tools/mc-bridge.py --stop`, the `pb-mc-stop` shortcut). Checked against the real server: Start -> Starting… (3 s) -> Stop server
+  (about 40 s, once RCON answered), then two taps -> Stopping… -> Start server in about 5 s, and the server log shows a clean save.
+- **Reordering pages**: tested on the phone with real touches (hold, then drag): it works and the order is kept. For slower or shakier
+  fingers the hold is now 0.3 s and tolerates 28 px of drift (it was 0.38 s and 10 px), a hint under "Pages" says what to do, and the
+  long-press menu is suppressed.

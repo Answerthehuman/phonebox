@@ -272,25 +272,45 @@ W.minecraft = {
       tabBtns.forEach((b) => b.classList.toggle('on', b.dataset.k === tab));
       TABS.forEach(([k, , pane]) => { pane.hidden = k !== tab; });
     }
+    // Start / Stop. The server counts as running only when the reader can talk to it (RCON answers), never from "some Java is running":
+    // the game itself is Java too. After a tap the button says Starting / Stopping until the reader's answer changes.
+    let pendingStart = 0, pendingStop = 0, armedStop = 0;
+    const serverState = () => {
+      const d = live(), up = ['ok', 'no-player'].includes(d?.status), now = Date.now();
+      if (up) pendingStart = 0; else pendingStop = 0;
+      if (up) return pendingStop && now - pendingStop < 60_000 ? 'stopping' : 'up';
+      if (pendingStart && now - pendingStart < 120_000) return 'starting';
+      if (!d && mc.server) return 'checking';           // Java is running but the reader has not answered yet
+      return 'down';
+    };
     serverBtn.addEventListener('click', async () => {
-      if (mc.server || ['ok', 'no-player'].includes(live()?.status)) { toast('The server is already running'); return; }
-      if (await run(serverBtn, 'pb-mc-server')) toast('Starting the server: a console window opens on the computer', 'ok');
+      const st = serverState();
+      if (st === 'starting' || st === 'stopping' || st === 'checking') return;
+      if (st === 'down') {
+        if (await run(serverBtn, 'pb-mc-server')) { pendingStart = Date.now(); toast('Starting the server: a console window opens on the computer', 'ok'); paintStatus(); }
+        return;
+      }
+      if (Date.now() - armedStop > 3000) { armedStop = Date.now(); paintStatus(); setTimeout(paintStatus, 3100); return; }   // the first tap only arms it
+      armedStop = 0;
+      if (await run(serverBtn, 'pb-mc-stop')) { pendingStop = Date.now(); toast('Saving the world and stopping the server', 'ok'); paintStatus(); }
     });
     function paintStatus() {
       const d = live();
-      const alive = d && ['ok', 'no-player'].includes(d.status);       // the reader answered: the server is running
+      const st = serverState();
       dot.classList.toggle('on', mc.game || d?.status === 'ok');
-      const bits = [mc.game || d?.status === 'ok' ? 'game running' : 'game not running', mc.server || alive ? 'server running' : 'server stopped'];
+      const bits = [mc.game || d?.status === 'ok' ? 'game running' : 'game not running',
+        { up: 'server running', stopping: 'server stopping', starting: 'server starting', checking: 'server running?', down: 'server stopped' }[st]];
       if (d?.status === 'ok' && d.player) {
         bits.push(d.player);
         if (d.pos) bits.push(d.pos.map(Math.round).join(' ') + (d.dim && d.dim !== 'overworld' ? ' ' + d.dim.replace('the_', '') : ''));
         if (d.daytime != null) bits.push((d.day != null ? 'day ' + (d.day + 1) + ' ' : '') + hhmm(d.daytime));
       }
       sub.textContent = bits.join('  ·  ');
-      const up = mc.server || alive;
-      serverBtn.classList.toggle('on', up);
-      serverBtn.textContent = up ? 'Server running' : 'Start server';
-      serverBtn.disabled = !have('pb-mc-server');
+      const armed = st === 'up' && Date.now() - armedStop < 3000;
+      serverBtn.classList.toggle('up', st === 'up');
+      serverBtn.classList.toggle('wait', st === 'starting' || st === 'stopping' || st === 'checking');
+      serverBtn.textContent = { up: armed ? 'Tap again to stop' : 'Stop server', stopping: 'Stopping…', starting: 'Starting…', checking: 'Checking…', down: 'Start server' }[st];
+      serverBtn.disabled = !have(st === 'up' ? 'pb-mc-stop' : 'pb-mc-server') || st === 'starting' || st === 'stopping' || st === 'checking';
       controls.querySelectorAll('.mc-key, .mc-mode, .mc-btn.home').forEach((b) => { const id = b.dataset.id || (b.dataset.k && 'pb-mc-gm-' + b.dataset.k) || (b.classList.contains('home') && 'pb-mc-home'); if (id) b.disabled = !have(id); });
     }
     showTab(); paintLive(); paintPlaying(); paintStatus(); paintHere();

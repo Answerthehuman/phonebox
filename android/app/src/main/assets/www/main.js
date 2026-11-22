@@ -1801,6 +1801,7 @@ function enableReorder(grid) {
   if (grid._reorder) return;
   grid._reorder = true;
   let drag = null, timer = 0, sx = 0, sy = 0;
+  grid.addEventListener('contextmenu', (e) => e.preventDefault());
   const place = (e) => {
     const el = drag.el;
     el.style.transform = 'none';
@@ -1826,10 +1827,10 @@ function enableReorder(grid) {
       drag = { el: t }; t.classList.add('drag'); haptic();
       try { t.setPointerCapture(e.pointerId); } catch (_) {}
       place(e);
-    }, 380);
+    }, 300);
   });
   grid.addEventListener('pointermove', (e) => {
-    if (!drag) { if (Math.hypot(e.clientX - sx, e.clientY - sy) > 10) clearTimeout(timer); return; }
+    if (!drag) { if (Math.hypot(e.clientX - sx, e.clientY - sy) > 28) clearTimeout(timer); return; }   // a finger drifts a little while it holds
     e.preventDefault();
     const under = [...grid.children].find((c) => {
       if (c === drag.el) return false;
