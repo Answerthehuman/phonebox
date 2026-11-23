@@ -100,7 +100,7 @@ python tools\extract-mc-icons.py          # optional: real Minecraft item pictur
 Start-Process "$env:LOCALAPPDATA\PhoneBox\app\PhoneBoxAgent.exe" -WorkingDirectory "$env:LOCALAPPDATA\PhoneBox\app"
 ```
 
-Its settings page is at <http://127.0.0.1:8765>. To repair or reinstall the agent run `.\setup.ps1 -Version 0.9.24 -NoPhone` again from the
+Or double-click `start-phonebox.bat` in the cloned folder (copy it to your desktop for a shortcut): it starts the agent if it is not already running and opens the settings page (`start-phonebox.bat /quiet` skips the page). Its settings page is at <http://127.0.0.1:8765>. To repair or reinstall the agent run `.\setup.ps1 -Version 0.9.24 -NoPhone` again from the
 cloned folder (your settings in `%APPDATA%\PhoneBox` are kept). The Minecraft reader needs no command: the phone starts it when your server is
 running.
 
